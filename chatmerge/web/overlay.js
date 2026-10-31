@@ -36,6 +36,7 @@
   const statusText = el("span", "status-text");
   statusEl.appendChild(statusText);
   let panel = null;
+  let spawnBtn = null;
   if (dock) {
     const settingsBtn = el("button", "settings-btn", "Settings");
     settingsBtn.type = "button";
@@ -43,7 +44,12 @@
     const clearBtn = el("button", "clear-btn", "Clear overlay");
     clearBtn.type = "button";
     armButton(clearBtn, "Clear overlay", "Click again to clear", () => send({ op: "clear_overlay" }));
-    statusEl.append(settingsBtn, clearBtn);
+    // Starcatch: only shown when [game] enabled = true.
+    spawnBtn = el("button", "settings-btn", "Spawn a star");
+    spawnBtn.type = "button";
+    spawnBtn.hidden = true;
+    spawnBtn.addEventListener("click", () => send({ op: "game_spawn" }));
+    statusEl.append(spawnBtn, settingsBtn, clearBtn);
   }
 
   // Two-click confirm: first click arms (red, new label) for 3 s, second click runs.
@@ -258,6 +264,7 @@
       case "resync": // settings changed: redraw from the app's backlog with the new rules
         if (msg.settings) settings = { ...settings, ...msg.settings };
         if (msg.bot_names) botNames = msg.bot_names;
+        if (spawnBtn) spawnBtn.hidden = !(msg.game && msg.game.enabled);
         feed.replaceChildren();
         for (const item of ((eventsMode ? msg.recent_events : msg.recent) || []).filter((i) => dock || shownOnStream(i)).slice(-max)) add(item, true);
         showStatus(msg.status);
@@ -269,6 +276,15 @@
       case "settings_error":
         if (panel) panel.failed(msg.errors || []);
         break;
+      case "game_busy":
+        if (spawnBtn) {
+          spawnBtn.textContent = "One is already out";
+          setTimeout(() => { spawnBtn.textContent = "Spawn a star"; }, 2500);
+        }
+        break;
+      case "game":
+      case "game_toast":
+        break; // shown on the /game browser source, not in chat
       case "add":
         add(msg.item, false);
         break;

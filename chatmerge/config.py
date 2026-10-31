@@ -7,7 +7,9 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
+from .game import GameConfig
 from .settings import OverlaySettings, SettingsError, apply_changes
+
 
 # Packaged .exe: user files (config.toml, secrets, emotes, settings.json, logs) sit next to the exe.
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
@@ -38,6 +40,8 @@ class Config:
     settings_path: Path
     logs_dir: Path
     root: Path
+    game: GameConfig
+    data_dir: Path
 
 
 def _secrets_dir(raw: str) -> Path:
@@ -60,6 +64,7 @@ def load(path: Path = DEFAULT_CONFIG, demo: bool = False) -> Config:
     youtube = raw.get("youtube", {})
     mod = raw.get("moderation", {})
     filters = raw.get("filters", {})
+    game = raw.get("game", {})
 
     twitch_enabled = bool(twitch.get("enabled", True))
     channel = str(twitch.get("channel", "")).strip().lstrip("#").lower()
@@ -87,6 +92,8 @@ def load(path: Path = DEFAULT_CONFIG, demo: bool = False) -> Config:
         settings_path=ROOT / "settings.json",
         logs_dir=ROOT / "logs",
         root=ROOT,
+        game=_game_config(path, game),
+        data_dir=ROOT / "data",
     )
     if not demo and not (cfg.twitch_enabled or cfg.youtube_enabled):
         raise ConfigError("Both Twitch and YouTube are disabled in config.toml; nothing to show.")
@@ -119,3 +126,30 @@ def _overlay_settings(path: Path, display: dict, mod: dict, filters: dict) -> Ov
         return apply_changes(OverlaySettings(), changes)
     except SettingsError as exc:
         raise ConfigError(f'in "{path}": ' + "; ".join(exc.problems)) from exc
+
+
+def _game_config(path: Path, raw: dict) -> GameConfig:
+    try:
+        game = GameConfig(
+            enabled=_strict(raw, "enabled", bool, False),
+            catch_command=_strict(raw, "catch_command", str, "!catch").strip(),
+            dex_command=_strict(raw, "dex_command", str, "!stars").strip(),
+            spawn_min_s=float(_strict(raw, "spawn_min_minutes", (int, float), 7)) * 60,
+            spawn_max_s=float(_strict(raw, "spawn_max_minutes", (int, float), 15)) * 60,
+            window_s=float(_strict(raw, "catch_window_seconds", (int, float), 60)),
+        )
+    except TypeError as exc:
+        raise ConfigError(f'in "{path}": {exc}') from exc
+    problems = game.validate()
+    if problems:
+        raise ConfigError(f'in "{path}": ' + "; ".join(problems))
+    return game
+
+
+def _strict(raw: dict, key: str, kind: type | tuple[type, ...], default: object):  # type: ignore[no-untyped-def]
+    value = raw.get(key, default)
+    if isinstance(value, bool) and kind is not bool:
+        raise TypeError(f"[game] {key} must be a number (got {value!r})")
+    if not isinstance(value, kind):
+        raise TypeError(f"[game] {key} has the wrong type (got {value!r})")
+    return value

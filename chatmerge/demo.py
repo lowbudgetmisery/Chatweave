@@ -29,6 +29,11 @@ SCRIPT: list[dict] = [
     {"platform": "twitch", "author": "glimmerfox", "text": "that was so clean", "emote": True},
     {"platform": "twitch", "author": "Raccomi3", "text": "@kanekolumi you have to try the new map"},
     {"platform": "youtube", "author": "@Lemons2", "text": "happy stream day @Lumi!!"},
+    # Hidden from chat by default (!commands); they play Starcatch when [game] is on.
+    {"platform": "twitch", "author": "Kaneko4", "text": "!catch"},
+    {"platform": "youtube", "author": "@Lemons2", "text": "!catch"},
+    {"platform": "twitch", "author": "Raccomi3", "text": "!catch"},
+    {"platform": "twitch", "author": "Lumi1", "text": "!stars"},
 ]
 
 

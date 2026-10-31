@@ -25,6 +25,8 @@ Predicate = Callable[[dict[str, Any]], bool]
 Reply = Callable[[dict[str, Any]], Awaitable[None]]
 # Called with every chat line before any filter runs (the catch game listens here).
 ItemHook = Callable[[ChatItem], Awaitable[None]]
+# A feature's handler for a dock request it owns (for example "game_spawn").
+ClientOp = Callable[[dict[str, Any], Reply], Awaitable[None]]
 
 
 async def _no_reply(_: dict[str, Any]) -> None:
@@ -47,6 +49,7 @@ class Hub:
         self._lines = LineFilter(self._settings)
         self._blocker = BlockFilter(self._settings)
         self._hooks: list[ItemHook] = []
+        self._client_ops: dict[str, ClientOp] = {}
         self._recent: deque[dict[str, Any]] = deque(maxlen=backlog)
         # Support events get their own backlog so a busy chat can't push them out
         # before the events window (re)connects.
@@ -75,6 +78,15 @@ class Hub:
 
     def add_hook(self, hook: ItemHook) -> None:
         self._hooks.append(hook)
+
+    def add_client_op(self, op: str, handler: ClientOp) -> None:
+        if op in _BUILTIN_OPS or op in self._client_ops:
+            raise ValueError(f"client op {op!r} is already taken")
+        self._client_ops[op] = handler
+
+    def is_hidden(self, item: ChatItem) -> bool:
+        """Hidden user, bot or tip bot under the current settings (commands don't count)."""
+        return normalize_name(item.author) in self._lines.hidden_names
 
     async def set_extra(self, key: str, value: Any, broadcast: dict[str, Any] | None = None) -> None:
         """Feature state included in hello/resync (for example the game's current spawn)."""
@@ -213,6 +225,8 @@ class Hub:
             base = self._store.base if self._store is not None else OverlaySettings()
             if await self._save_and_reply(base, reply):
                 log.info("dock settings reset to config.toml")
+        elif isinstance(op, str) and op in self._client_ops:
+            await self._client_ops[op](msg, reply)
         else:
             log.warning("ignored unknown request %r from a browser page", op)
 
@@ -284,6 +298,9 @@ class Hub:
             async with self._lock:
                 for ws in dead:
                     self._clients.discard(ws)
+
+
+_BUILTIN_OPS = frozenset({"hide", "hide_user", "clear_overlay", "update_settings", "reset_settings"})
 
 
 def _short_text(value: Any) -> bool:

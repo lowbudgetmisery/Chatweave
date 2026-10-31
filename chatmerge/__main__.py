@@ -89,6 +89,8 @@ async def _serve(
     print(f"Overlay (OBS browser source): {base}")
     print(f"Events window (OBS browser source): {base}events")
     print(f"Dock (OBS custom browser dock): {base}?dock=1")
+    if cfg.game.enabled:
+        print(f"Starcatch game (OBS browser source): {base}game")
     print(f'Log file: "{cfg.logs_dir / "chatmerge.log"}"')
 
     recorder: Recorder | None = None
@@ -98,6 +100,13 @@ async def _serve(
     print("Press Ctrl+C to stop.")
 
     tasks: list[asyncio.Task[None]] = []
+    star_db = None
+    if cfg.game.enabled:
+        from .game import StarDB, Starcatch
+
+        star_db = StarDB(cfg.data_dir / "starcatch.db")
+        game = Starcatch(hub, cfg.game, star_db)
+        tasks.append(asyncio.create_task(_supervise("game", hub, game.run)))
     try:
         async with aiohttp.ClientSession() as session:
             if mode == "demo":
@@ -131,6 +140,8 @@ async def _serve(
     finally:
         if recorder is not None:
             recorder.close()
+        if star_db is not None:
+            star_db.close()
 
 
 async def _replay(hub: Hub, session: aiohttp.ClientSession, path: Path, speed: float) -> None:

@@ -1,6 +1,6 @@
 # Merged Chat for OBS (Twitch + YouTube)
 
-*Version 1.6.0. The black window from `Start Chat.bat` prints the version on its first line.*
+*Version 1.7.0. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
@@ -17,7 +17,10 @@ One chat box for your stream with **Twitch and YouTube together**, styled with a
 - A **separate support-events window**: put bits, Super Chats, subs and raids in their own spot on screen (they also stay in chat)
 - Shows the newest 8 messages; the oldest one fades out at the top as new ones arrive
 - Finds your YouTube stream on its own when you go live. No pasting links every stream.
-- Your own cleanup tools: a blocked-words list, a **Hide** button on each line in your dock and a **Clear overlay** button. They only change what viewers see on the overlay.
+- Hides chat bots (Nightbot and friends) and `!commands` like `!catch` or `!discord`, so the overlay stays readable
+- **Sub-only overlay** at the flip of a setting: on stream, only subs, YouTube members, VIPs and mods show. Your real chat stays open.
+- Your own cleanup tools in the dock: **Hide** a line, **Hide user**, **Clear overlay**, a blocked-words list, and a **Settings** panel for all of it. They only change what viewers see on the overlay.
+- Optional chat game, **Starcatch** (off unless you turn it on): a star drifts onto the screen and viewers on both platforms type `!catch`
 - Read-only: it can't post, delete or ban anything on Twitch or YouTube. Twitch needs no login at all, and YouTube only gets read-only access.
 - Runs on your PC only. Nothing is uploaded anywhere.
 
@@ -27,7 +30,7 @@ One chat box for your stream with **Twitch and YouTube together**, styled with a
 
 - Windows 10 or 11
 - OBS Studio
-- **Python 3.12 or 3.13** from [python.org](https://www.python.org/downloads/windows/). During install, tick **"Add python.exe to PATH"**.
+- **Python 3.11, 3.12 or 3.13** from [python.org](https://www.python.org/downloads/windows/). During install, tick **"Add python.exe to PATH"**. *(Not needed if you were given the app version with `chatmerge.exe`; see below.)*
 - A Google account that manages your YouTube channel (only for the YouTube part)
 
 ---
@@ -40,6 +43,8 @@ One chat box for your stream with **Twitch and YouTube together**, styled with a
 2. Extract it somewhere permanent, for example your `Documents` folder. You'll get a folder called `chatmerge`; everything below happens inside it.
 
 ### 2. Run Setup
+
+> **App version (has `chatmerge.exe`, no `Setup.bat`):** skip this step; nothing to install. The first time you double-click a launcher, Windows may say "Windows protected your PC" because the app isn't signed: click **More info**, then **Run anyway**.
 
 Double-click **`Setup.bat`**. It makes a private Python environment inside the folder (it doesn't touch anything else on your PC), installs what it needs and runs a quick self-test. It takes a minute or two the first time.
 
@@ -93,7 +98,13 @@ When the window says `Saved YouTube token`, you're done.
 1. **Docks** menu, **Custom Browser Docks**.
 2. Name: `Chat`, URL: `http://127.0.0.1:8787/?dock=1`
 3. This one has a dark background, keeps more messages, and shows a status line at the top (handy if something's not connecting).
-4. It also has your cleanup buttons: hover a line and click **Hide** to take it off the stream overlay, or click **Clear overlay** (top right, click twice to confirm) to empty it.
+4. Your controls live here (none of them touch Twitch or YouTube):
+   - Hover a line: **Hide** takes that line off the stream. **Hide user** (click twice) hides everything from that name on both platforms, now and later. Undo it in Settings.
+   - **Settings** (top right): sub-only overlay, bots, `!commands`, hidden users, blocked words, what happens when mods act. **Save** applies it instantly; no restart.
+   - **Clear overlay** (click twice) empties the chat and events windows.
+   - When the overlay is set to subs only, lines viewers can't see on stream are dimmed in your dock.
+
+**Starcatch game (optional, only if you turned it on):** Sources, **+**, **Browser**, URL `http://127.0.0.1:8787/game`, Width `480`, Height `420`. See **Starcatch** below.
 
 **To position the overlays without being live:** double-click **`Start Demo.bat`** and it plays fake messages (including fake bits, Super Chats and raids) into both windows on a loop. Close that window when you're done.
 
@@ -137,7 +148,15 @@ Examples: `http://127.0.0.1:8787/?max=6&scale=1.2` or `http://127.0.0.1:8787/eve
 
 **YouTube member emojis:** YouTube only sends the code (like `:_lumiHeart:`), never the picture. Put your emoji images in the **`emotes`** folder, named after the code without the colons (`_lumiHeart.png`). PNG, GIF, WEBP and JPG all work. Codes without a picture show as a small neat label instead of raw text. New files are picked up while it runs; refresh the OBS source to see them.
 
-**Hiding bots:** in `config.toml`, `hide_users = ["nightbot", "fossabot"]` hides those accounts completely (any capitalization, works for Twitch and YouTube names). Careful with tip bots like StreamElements: hiding them also hides their tip announcements.
+**Settings in the dock vs `config.toml`:** everything in the dock's Settings panel can also be set in `config.toml`. `config.toml` is the starting point; what you save in the dock goes into `settings.json` and wins. **Reset to config.toml** in the panel (click twice) goes back.
+
+**Bots and commands:** `[filters]` in `config.toml`:
+- `hide_known_bots = true` hides Nightbot, Fossabot, Moobot, Wizebot, Sery_Bot and Botisimo.
+- `hide_tip_bots = false` keeps StreamElements, Streamlabs and SoundAlerts, because hiding them also hides their tip announcements.
+- `hide_commands = true` hides lines starting with `!word`. Paid lines (bits, Super Chats) always show.
+- `hide_users = ["someviewer"]` under `[display]` hides any other names (any capitalization, Twitch and YouTube).
+
+**Sub-only overlay:** `overlay_audience = "subs"` (or **Shows** in the dock's Settings) shows only Twitch subs, YouTube members, VIPs, mods and you on stream, plus every support event. YouTube doesn't say who is a channel *subscriber*, only who is a *member*, so on YouTube it's members. This doesn't change your real chat; to actually put chat in sub-only or members-only mode, use the normal Twitch and YouTube chat settings.
 
 **Twitch channel:** set in `config.toml` (`channel = "kanekolumi"`).
 
@@ -157,7 +176,7 @@ Nothing is lost while it waits; the next connection picks up every message. The 
 
 ## Moderation and cleanup
 
-Nothing here bans, times out or deletes anything on Twitch or YouTube. Keep doing that in the normal Twitch and YouTube windows. These settings only decide what the **overlay** shows. They live under `[moderation]` in `config.toml`; save the file and restart `Start Chat.bat` after changing them.
+Nothing here bans, times out or deletes anything on Twitch or YouTube. Keep doing that in the normal Twitch and YouTube windows. These settings only decide what the **overlay** shows. Change them in the dock's **Settings** panel (instant), or under `[moderation]` in `config.toml` (restart `Start Chat.bat` after).
 
 **When a mod acts on Twitch or YouTube:**
 
@@ -188,6 +207,20 @@ Good to know:
 
 ---
 
+## Starcatch (optional chat game)
+
+Off by default. To try it: in `config.toml` set `enabled = true` under `[game]`, restart, and add the `/game` browser source (step 5).
+
+- Every 7 to 15 minutes (change it under `[game]`) a star creature drifts onto the game source with a 60-second timer.
+- Viewers type **`!catch`** in Twitch or YouTube chat. One throw per person per star. Common stars are easy, rare ones harder, legendary ones (about 1 in 20) much harder.
+- Everyone who catches it is shown on the card. Catches are saved in `data\starcatch.db`, so they carry over between streams.
+- **`!stars`** shows that viewer's totals on the game source ("12 caught, 5 of 11 kinds").
+- **Spawn a star** in the dock sends one out right now.
+- It never posts in chat, so there's no bot account to set up and it uses none of the YouTube allowance. `!catch` and `!stars` lines are hidden from the chat overlay (if `hide_commands` is on). Hidden users can't play.
+- The 11 species and their constellation art are original to this app.
+
+---
+
 ## What shows up highlighted
 
 | Platform | Event |
@@ -215,13 +248,29 @@ Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits l
 | YouTube chat doesn't appear | Check the status line in the dock. It needs your stream to be live on the channel you logged in with, and live chat turned on. |
 | Overlay is blank in OBS | Make sure `Start Chat.bat` is running, then right-click the browser source and click **Refresh**. |
 | "Address already in use" | Another app is using port 8787. Change `port` in `config.toml` and use the new number in the OBS URLs. |
+| Something odd happened mid-stream | Look in the **`logs`** folder: `chatmerge.log` has what happened, with times. Send it along when asking for help (it contains chat names, so share it privately). |
+| "Could not read settings.json" at startup | The dock's saved settings file got damaged. Rename `settings.json` (to keep it) and start again; you'll be back on `config.toml` settings. |
 | 7TV emotes show as plain words | The 7TV list loads on startup and refreshes every 15 minutes. New emotes appear after that, or restart `Start Chat.bat`. |
+
+---
+
+## Recording chat for testing
+
+**`Record Chat.bat`** works like `Start Chat.bat` but also saves the raw chat into the `recordings` folder. Playing it back later shows exactly what happened, which is the best way to test changes without going live:
+
+```
+.\run_chat.ps1 -Replay "recordings\chat_2026-10-30_20-00-00.jsonl" -Speed 4
+```
+
+`-Speed 4` plays four times faster; `-Speed 0` plays it all at once. Recordings contain real viewers' names and messages: keep them private.
 
 ---
 
 ## Privacy and safety
 
 - The **`secrets`** folder holds your YouTube login. **Never share or upload it**, and delete it before giving this folder to anyone else.
+- `recordings`, `logs` and `data` hold viewers' names and messages. Keep them private too.
+- The overlay only answers pages it served itself on `127.0.0.1`. Other websites open in your browser can't read chat or press the dock's buttons.
 - To remove access at any time: [myaccount.google.com/permissions](https://myaccount.google.com/permissions), find your app, **Remove access**.
 - The YouTube API is free, with a daily allowance per Google project (see **YouTube daily allowance** above).
 

@@ -45,7 +45,7 @@
     clearBtn.type = "button";
     armButton(clearBtn, "Clear overlay", "Click again to clear", () => send({ op: "clear_overlay" }));
     // Starcatch: only shown when [game] enabled = true.
-    spawnBtn = el("button", "settings-btn", "Spawn a star");
+    spawnBtn = el("button", "spawn-btn", "Spawn a star");
     spawnBtn.type = "button";
     spawnBtn.hidden = true;
     spawnBtn.addEventListener("click", () => send({ op: "game_spawn" }));
@@ -256,6 +256,7 @@
   function showStatus(status) {
     const parts = Object.entries(status || {}).map(([k, v]) => `${k}: ${v}`);
     statusText.textContent = parts.join("   |   ");
+    statusText.title = parts.join("\n"); // full text on hover when the bar cuts it off
   }
 
   function handle(msg) {
@@ -452,7 +453,13 @@
       failed(errors) { msgBox.className = "panel-msg bad"; msgBox.textContent = `Not saved: ${errors.join("; ")}`; },
     };
   }
-  if (dock) panel = makePanel();
+  if (dock) {
+    panel = makePanel();
+    // The bar can wrap to two rows in a narrow dock; keep the feed and panel just below it.
+    const fit = () => document.documentElement.style.setProperty("--bar-h", `${statusEl.offsetHeight}px`);
+    new ResizeObserver(fit).observe(statusEl);
+    fit();
+  }
 
   function connect() {
     const ws = new WebSocket(`ws://${location.host}/ws`);

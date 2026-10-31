@@ -1,0 +1,23 @@
+# Changelog
+
+## 1.7.0
+
+Added
+- Known chat bots (Nightbot, Fossabot, Moobot, Wizebot, Sery_Bot, Botisimo) and `!commands` are hidden from the overlay by default. Tip bots (StreamElements, Streamlabs, SoundAlerts) are optional.
+- Sub-only overlay: only subs, YouTube members, VIPs, mods and the streamer show on stream, plus all support events. The dock still shows everyone and dims the lines viewers can't see.
+- Dock: **Hide user** button (both platforms, now and later), **Settings** panel that applies instantly and saves to `settings.json`, **Spawn a star** when the game is on.
+- Starcatch: optional overlay-only catch game on a new `/game` browser source (`[game]` in config.toml, off by default).
+- `Record Chat.bat` / `run --record` saves raw chat; `replay` plays it back through the same code for testing.
+- Log file in `logs/chatmerge.log` (about 6 MB kept).
+- App build: `build_exe.ps1` makes a folder with `chatmerge.exe` that needs no Python.
+
+Changed
+- `requirements.txt` now lists exact versions tested together. Run `Setup.bat` again after updating.
+- The server refuses requests addressed to any other host name, and websocket connections from other websites.
+
+Fixed
+- A fresh install could pick a grpcio-tools whose generated YouTube code needs a newer protobuf than the one installed, so YouTube chat failed to load. The generated code is now rebuilt whenever those package versions change.
+
+## 1.6.0
+
+- Per-action overlay behavior for deletes, timeouts, bans and Twitch `/clear` (remove, placeholder or keep), fade or instant removal, blocked words and links, dock Hide and Clear overlay buttons.

@@ -1,8 +1,8 @@
 "use strict";
 // Pages:  /  = chat (all lines)   /events = support events only (bits, Super Chats, subs, raids...)
 // URL options:  ?dock=1  ?max=8  ?scale=1.0  ?hide=0 (seconds before a line fades, 0 = never)
-// Dock (?dock=1) adds a Hide button on each line and a Clear overlay button; both only
-// change what the overlay shows and never touch Twitch or YouTube.
+// Dock (?dock=1) adds Hide and Hide user buttons on each line, a Clear overlay button and a
+// Settings panel. All of them only change what the overlay shows; never Twitch or YouTube.
 (() => {
   const params = new URLSearchParams(location.search);
   const dock = params.get("dock") === "1";
@@ -27,31 +27,44 @@
   const IMG_OK = ["https://static-cdn.jtvnw.net/", "https://cdn.7tv.app/", "/static/", "/custom/"];
   const ICONS = { sub: "✧", gift: "❖", bits: "◆", raid: "☄", superchat: "✦", supersticker: "✦", member: "✧" };
   const SVG_NS = "http://www.w3.org/2000/svg";
-  // Sent by the app in "hello" (from [moderation] in config.toml).
-  let settings = { removal_style: "fade", placeholder_text: "message removed" };
+  // Sent by the app in hello/resync: config.toml defaults plus anything saved from the dock.
+  let settings = { removal_style: "fade", placeholder_text: "message removed", overlay_audience: "everyone" };
+  let botNames = { chat: [], tip: [] };
   let sock = null;
 
-  // Dock only: status text plus a two-click "Clear overlay" button.
+  // Dock only: status text, Settings and a two-click "Clear overlay" button.
   const statusText = el("span", "status-text");
   statusEl.appendChild(statusText);
+  let panel = null;
   if (dock) {
+    const settingsBtn = el("button", "settings-btn", "Settings");
+    settingsBtn.type = "button";
+    settingsBtn.addEventListener("click", () => panel.toggle());
     const clearBtn = el("button", "clear-btn", "Clear overlay");
     clearBtn.type = "button";
+    armButton(clearBtn, "Clear overlay", "Click again to clear", () => send({ op: "clear_overlay" }));
+    statusEl.append(settingsBtn, clearBtn);
+  }
+
+  // Two-click confirm: first click arms (red, new label) for 3 s, second click runs.
+  function armButton(btn, idleText, armedText, onConfirm) {
     let armed = null;
-    clearBtn.addEventListener("click", () => {
+    const disarm = () => { clearTimeout(armed); armed = null; btn.textContent = idleText; btn.classList.remove("armed"); };
+    btn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
       if (!armed) {
-        clearBtn.textContent = "Click again to clear";
-        clearBtn.classList.add("armed");
-        armed = setTimeout(() => { armed = null; clearBtn.textContent = "Clear overlay"; clearBtn.classList.remove("armed"); }, 3000);
+        btn.textContent = armedText;
+        btn.classList.add("armed");
+        armed = setTimeout(disarm, 3000);
         return;
       }
-      clearTimeout(armed);
-      armed = null;
-      clearBtn.textContent = "Clear overlay";
-      clearBtn.classList.remove("armed");
-      send({ op: "clear_overlay" });
+      disarm();
+      onConfirm();
     });
-    statusEl.appendChild(clearBtn);
+  }
+
+  function shownOnStream(item) {
+    return settings.overlay_audience !== "subs" || item.sub_ok !== false;
   }
 
   function send(obj) {
@@ -146,11 +159,22 @@
     }
     if (dock) {
       // Hide from the on-stream overlay only. Doesn't touch Twitch or YouTube.
+      const tools = el("span", "line-tools");
       const hideBtn = el("button", "hide-btn", "Hide");
       hideBtn.type = "button";
       hideBtn.title = "Hide this message from the stream overlay";
       hideBtn.addEventListener("click", () => send({ op: "hide", platform: item.platform, id: item.id }));
-      head.appendChild(hideBtn);
+      const userBtn = el("button", "hide-btn hide-user-btn", "Hide user");
+      userBtn.type = "button";
+      userBtn.title = "Hide everything from this name on the overlay (undo in Settings)";
+      armButton(userBtn, "Hide user", "Click again", () =>
+        send({ op: "hide_user", platform: item.platform, user_id: item.user_id, name: item.author }));
+      tools.append(hideBtn, userBtn);
+      head.appendChild(tools);
+      if (!shownOnStream(item)) {
+        root.classList.add("offstage");
+        root.title = "Not on stream: the overlay is set to subs and members only";
+      }
     }
     const bubble = el("div", "bubble");
     if (item.event && item.headline) {
@@ -182,6 +206,7 @@
 
   function add(item, instant) {
     if (eventsMode && !item.event) return;
+    if (!dock && !shownOnStream(item)) return;
     const node = build(item, instant);
     feed.appendChild(node);
     if (hideAfter > 0) setTimeout(() => leave(node), hideAfter * 1000);
@@ -230,10 +255,19 @@
   function handle(msg) {
     switch (msg.op) {
       case "hello":
+      case "resync": // settings changed: redraw from the app's backlog with the new rules
         if (msg.settings) settings = { ...settings, ...msg.settings };
+        if (msg.bot_names) botNames = msg.bot_names;
         feed.replaceChildren();
-        for (const item of ((eventsMode ? msg.recent_events : msg.recent) || []).slice(-max)) add(item, true);
+        for (const item of ((eventsMode ? msg.recent_events : msg.recent) || []).filter((i) => dock || shownOnStream(i)).slice(-max)) add(item, true);
         showStatus(msg.status);
+        if (panel) panel.refresh();
+        break;
+      case "settings_saved":
+        if (panel) panel.saved();
+        break;
+      case "settings_error":
+        if (panel) panel.failed(msg.errors || []);
         break;
       case "add":
         add(msg.item, false);
@@ -248,6 +282,161 @@
         console.warn("unknown op", msg.op);
     }
   }
+
+  // ---- Settings panel (dock only) -------------------------------------------
+  function makePanel() {
+    const MODES = [["remove", "Remove the line"], ["placeholder", "Show \u201Cmessage removed\u201D"], ["keep", "Leave it"]];
+    const root = el("section", "panel");
+    root.hidden = true;
+    const form = el("div", "panel-body");
+    const controls = {};
+    let dirty = false;
+    let hidden = [];
+
+    function row(label, control, hint) {
+      const wrap = el("label", "row");
+      wrap.append(el("span", "row-label", label), control);
+      if (hint) wrap.appendChild(el("span", "row-hint", hint));
+      return wrap;
+    }
+    function select(key, options) {
+      const s = el("select");
+      for (const [value, text] of options) {
+        const o = el("option", "", text);
+        o.value = value;
+        s.appendChild(o);
+      }
+      s.addEventListener("change", () => { dirty = true; });
+      controls[key] = s;
+      return s;
+    }
+    function check(key, label, hint) {
+      const box = el("input");
+      box.type = "checkbox";
+      box.addEventListener("change", () => { dirty = true; });
+      controls[key] = box;
+      const wrap = el("label", "row check");
+      wrap.append(box, el("span", "row-label", label));
+      if (hint) wrap.appendChild(el("span", "row-hint", hint));
+      return wrap;
+    }
+    function heading(text) { return el("h3", "", text); }
+
+    const chatBotHint = el("span", "row-hint");
+    const tipBotHint = el("span", "row-hint");
+    const hiddenList = el("div", "chips");
+    const addInput = el("input");
+    addInput.placeholder = "name to hide";
+    addInput.maxLength = 100;
+    const addBtn = el("button", "small", "Add");
+    addBtn.type = "button";
+    addBtn.addEventListener("click", () => {
+      const name = addInput.value.trim().replace(/^@/, "");
+      if (name && !hidden.some((h) => h.toLowerCase() === name.toLowerCase())) { hidden.push(name); dirty = true; drawHidden(); }
+      addInput.value = "";
+    });
+    addInput.addEventListener("keydown", (ev) => { if (ev.key === "Enter") addBtn.click(); });
+    function drawHidden() {
+      hiddenList.replaceChildren();
+      if (!hidden.length) hiddenList.appendChild(el("span", "row-hint", "Nobody hidden. Use Hide user on a line, or add a name."));
+      for (const name of hidden) {
+        const chip = el("span", "chip", name);
+        const x = el("button", "chip-x", "\u00D7");
+        x.type = "button";
+        x.title = `Show ${name} again`;
+        x.addEventListener("click", () => { hidden = hidden.filter((h) => h !== name); dirty = true; drawHidden(); });
+        chip.appendChild(x);
+        hiddenList.appendChild(chip);
+      }
+    }
+    const words = el("textarea");
+    words.rows = 4;
+    words.placeholder = "one word or phrase per line";
+    words.addEventListener("input", () => { dirty = true; });
+    controls.blocked_words = words;
+    const placeholder = el("input");
+    placeholder.maxLength = 100;
+    placeholder.addEventListener("input", () => { dirty = true; });
+    controls.placeholder_text = placeholder;
+
+    const chatBots = check("hide_known_bots", "Hide chat bots");
+    chatBots.appendChild(chatBotHint);
+    const tipBots = check("hide_tip_bots", "Hide tip bots", "Also hides their tip announcements");
+    tipBots.appendChild(tipBotHint);
+    const addRow = el("div", "add-row");
+    addRow.append(addInput, addBtn);
+
+    form.append(
+      heading("On-stream chat"),
+      row("Shows", select("overlay_audience", [["everyone", "Everyone"], ["subs", "Subs, members, VIPs and mods only"]]),
+        "Support events always show. Your dock still shows everyone (dimmed lines are off stream)."),
+      check("hide_commands", "Hide !commands", "Lines like !catch or !discord"),
+      chatBots,
+      tipBots,
+      heading("Hidden users"),
+      hiddenList,
+      addRow,
+      heading("Blocked words"),
+      words,
+      check("block_links", "Hide messages with links"),
+      check("exempt_mods", "Never block you and your mods"),
+      heading("When a mod acts on Twitch or YouTube"),
+      row("Deleted message", select("on_delete", MODES)),
+      row("Timeout", select("on_timeout", MODES)),
+      row("Ban", select("on_ban", MODES)),
+      row("Twitch /clear", select("on_clear", MODES)),
+      row("Dock Hide button", select("on_dock_hide", MODES.slice(0, 2))),
+      row("Placeholder words", placeholder),
+      row("Removing lines", select("removal_style", [["fade", "Fade out"], ["instant", "Instantly"]])),
+    );
+
+    const msgBox = el("div", "panel-msg");
+    const bar = el("div", "panel-bar");
+    const save = el("button", "primary", "Save");
+    save.type = "button";
+    save.addEventListener("click", () => {
+      const out = {};
+      for (const [key, c] of Object.entries(controls)) {
+        if (key === "blocked_words") out[key] = c.value.split("\n").map((w) => w.trim()).filter(Boolean);
+        else if (c.type === "checkbox") out[key] = c.checked;
+        else out[key] = c.value;
+      }
+      out.hide_users = hidden.slice();
+      msgBox.className = "panel-msg";
+      msgBox.textContent = "Saving...";
+      send({ op: "update_settings", settings: out });
+    });
+    const close = el("button", "", "Close");
+    close.type = "button";
+    close.addEventListener("click", () => { dirty = false; root.hidden = true; });
+    const reset = el("button", "", "Reset to config.toml");
+    reset.type = "button";
+    armButton(reset, "Reset to config.toml", "Click again to reset", () => send({ op: "reset_settings" }));
+    bar.append(save, close, reset);
+    root.append(el("h2", "", "Overlay settings"), form, msgBox, bar);
+    document.body.appendChild(root);
+
+    function fill() {
+      for (const [key, c] of Object.entries(controls)) {
+        const v = settings[key];
+        if (key === "blocked_words") c.value = (v || []).join("\n");
+        else if (c.type === "checkbox") c.checked = !!v;
+        else if (v !== undefined) c.value = v;
+      }
+      hidden = (settings.hide_users || []).slice();
+      drawHidden();
+      chatBotHint.textContent = (botNames.chat || []).join(", ");
+      tipBotHint.textContent = (botNames.tip || []).join(", ");
+      dirty = false;
+    }
+    return {
+      toggle() { if (root.hidden) { fill(); msgBox.textContent = ""; } root.hidden = !root.hidden; },
+      refresh() { if (!root.hidden && !dirty) fill(); },
+      saved() { dirty = false; fill(); msgBox.className = "panel-msg ok"; msgBox.textContent = "Saved. The overlay already uses it."; },
+      failed(errors) { msgBox.className = "panel-msg bad"; msgBox.textContent = `Not saved: ${errors.join("; ")}`; },
+    };
+  }
+  if (dock) panel = makePanel();
 
   function connect() {
     const ws = new WebSocket(`ws://${location.host}/ws`);

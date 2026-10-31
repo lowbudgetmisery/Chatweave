@@ -5,14 +5,9 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
-from dataclasses import dataclass, field
 
 from .models import ChatItem
-
-MODES = ("remove", "placeholder", "keep")
-# Platform actions and the dock's buttons. "dock_clear" always removes.
-ACTIONS = ("delete", "timeout", "ban", "clear", "dock_hide", "dock_clear")
-REMOVAL_STYLES = ("fade", "instant")
+from .settings import ACTIONS, MODES, REMOVAL_STYLES, OverlaySettings  # noqa: F401 (re-exported)
 
 LINK_RE = re.compile(
     r"(?:https?://|www\.)\S+"
@@ -20,48 +15,8 @@ LINK_RE = re.compile(
     re.IGNORECASE,
 )
 
-
-@dataclass(slots=True)
-class ModerationSettings:
-    on_delete: str = "remove"
-    on_timeout: str = "remove"
-    on_ban: str = "remove"
-    on_clear: str = "remove"
-    on_dock_hide: str = "remove"
-    placeholder_text: str = "message removed"
-    removal_style: str = "fade"
-    blocked_words: list[str] = field(default_factory=list)
-    block_links: bool = False
-    exempt_mods: bool = True
-
-    def mode_for(self, action: str) -> str:
-        if action == "dock_clear":
-            return "remove"
-        return {
-            "delete": self.on_delete,
-            "timeout": self.on_timeout,
-            "ban": self.on_ban,
-            "clear": self.on_clear,
-            "dock_hide": self.on_dock_hide,
-        }[action]
-
-    def validate(self) -> list[str]:
-        """Human-readable problems; empty when valid."""
-        problems = []
-        for name in ("on_delete", "on_timeout", "on_ban", "on_clear"):
-            value = getattr(self, name)
-            if value not in MODES:
-                problems.append(f'[moderation] {name} must be "remove", "placeholder" or "keep" (got {value!r})')
-        if self.on_dock_hide not in ("remove", "placeholder"):
-            problems.append(f'[moderation] on_dock_hide must be "remove" or "placeholder" (got {self.on_dock_hide!r})')
-        if self.removal_style not in REMOVAL_STYLES:
-            problems.append(f'[moderation] removal_style must be "fade" or "instant" (got {self.removal_style!r})')
-        if not self.placeholder_text.strip():
-            problems.append("[moderation] placeholder_text can't be empty")
-        return problems
-
-    def client_settings(self) -> dict[str, str]:
-        return {"removal_style": self.removal_style, "placeholder_text": self.placeholder_text}
+# Kept for older imports; the settings now live in settings.py.
+ModerationSettings = OverlaySettings
 
 
 def build_block_pattern(words: Iterable[str]) -> re.Pattern[str] | None:
@@ -77,7 +32,7 @@ def message_text(item: ChatItem) -> str:
 
 
 class BlockFilter:
-    def __init__(self, settings: ModerationSettings) -> None:
+    def __init__(self, settings: OverlaySettings) -> None:
         self.pattern = build_block_pattern(settings.blocked_words)
         self.block_links = settings.block_links
         self.exempt_mods = settings.exempt_mods

@@ -10,6 +10,7 @@ import aiohttp
 
 from .hub import Hub
 from .models import ChatItem, Kind, emote_frag, text_frag
+from .recorder import Recorder
 from .seventv import SevenTV
 
 log = logging.getLogger("chatmerge.twitch")
@@ -176,13 +177,21 @@ def item_from_usernotice(msg: IrcMessage) -> ChatItem | None:
 
 
 class TwitchChat:
-    def __init__(self, channel: str, hub: Hub, session: aiohttp.ClientSession, seventv: SevenTV) -> None:
+    def __init__(
+        self,
+        channel: str,
+        hub: Hub,
+        session: aiohttp.ClientSession,
+        seventv: SevenTV,
+        recorder: Recorder | None = None,
+    ) -> None:
         self.channel = channel.lower().lstrip("#")
         self.hub = hub
         self.session = session
         self.seventv = seventv
         self._room_id: str | None = None
         self._mystery_gift_ids: set[str] = set()
+        self.recorder = recorder
 
     async def run(self) -> None:
         await self.seventv.load_global()
@@ -217,11 +226,19 @@ class TwitchChat:
             async for frame in ws:
                 if frame.type == aiohttp.WSMsgType.TEXT:
                     for line in frame.data.split("\r\n"):
-                        if line and await self._handle(ws, parse_line(line)) is False:
+                        if not line:
+                            continue
+                        if await self.handle_line(ws, line) is False:
                             return
                 elif frame.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
                     break
         await self.hub.set_status("twitch", "connection closed")
+
+    async def handle_line(self, ws: aiohttp.ClientWebSocketResponse, line: str) -> bool:
+        """One raw IRC line (live or replayed). False = the server asked us to reconnect."""
+        if self.recorder is not None:
+            self.recorder.twitch(line)
+        return await self._handle(ws, parse_line(line))
 
     async def _handle(self, ws: aiohttp.ClientWebSocketResponse, msg: IrcMessage) -> bool:
         cmd = msg.command

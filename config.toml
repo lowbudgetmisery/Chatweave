@@ -1,4 +1,6 @@
 # chatmerge settings. Edit, save, then restart "Start Chat.bat".
+# The [display] hide_users, [moderation] and [filters] values can also be changed live from
+# the dock's Settings button. Those changes are saved in settings.json and win over this file.
 
 [server]
 host = "127.0.0.1"     # local only, do not change
@@ -12,9 +14,17 @@ channel = "kanekolumi" # Twitch login name (the part after twitch.tv/)
 [display]
 # Messages that @mention any of these names get a gold highlight (not case sensitive).
 mention_names = ["kanekolumi", "lumi"]
-# Accounts whose messages never show (bots). Example: ["nightbot", "fossabot"]
-# Careful: tip bots like StreamElements also announce tips; hiding them hides those too.
+# Accounts whose messages never show. Example: ["someviewer", "anotherbot"]
+# Common bots are already covered by [filters] below.
 hide_users = []
+
+[filters]
+# "everyone", or "subs" = the on-stream chat shows only subs, YouTube members, VIPs, mods and you
+# (support events always show). Your dock still shows everyone.
+overlay_audience = "everyone"
+hide_commands = true      # hide lines that start with !word (!catch, !discord, ...)
+hide_known_bots = true    # Nightbot, Fossabot, Moobot, Wizebot, Sery_Bot, Botisimo
+hide_tip_bots = false     # StreamElements, Streamlabs, SoundAlerts (also hides their tip announcements)
 
 [moderation]
 # What the overlay does when a mod acts in Twitch or YouTube (or you use the dock):

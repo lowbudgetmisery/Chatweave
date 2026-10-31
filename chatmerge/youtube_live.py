@@ -19,6 +19,7 @@ from . import protogen
 from .config import ConfigError
 from .hub import Hub
 from .models import ChatItem, text_frag
+from .recorder import Recorder
 
 log = logging.getLogger("chatmerge.youtube")
 
@@ -236,6 +237,33 @@ def chat_id_from_broadcasts(body: dict[str, Any]) -> tuple[str | None, str]:
     return None, ""
 
 
+# ------------------------------------------------------------ dispatch --------
+class YouTubeDispatcher:
+    """Turns LiveChatMessages into hub calls, skipping repeats. Shared by live chat and replay."""
+
+    def __init__(self, hub: Hub, pb2: Any) -> None:
+        self.hub = hub
+        self.pb2 = pb2
+        self._seen: deque[str] = deque(maxlen=4000)
+        self._seen_set: set[str] = set()
+
+    async def dispatch(self, msg: Any) -> str:
+        action, payload = map_message(self.pb2, msg)
+        if action == "add":
+            if payload.id in self._seen_set:
+                return action
+            if len(self._seen) == self._seen.maxlen:
+                self._seen_set.discard(self._seen[0])
+            self._seen.append(payload.id)
+            self._seen_set.add(payload.id)
+            await self.hub.add(payload)
+        elif action == "delete":
+            await self.hub.moderate("youtube", "delete", ids=[payload])
+        elif action in ("timeout", "ban"):
+            await self.hub.moderate("youtube", action, user_id=payload)
+        return action
+
+
 # -------------------------------------------------------------- client --------
 class YouTubeChat:
     def __init__(
@@ -247,6 +275,7 @@ class YouTubeChat:
         test_video_id: str | None = None,
         quota_per_day: int = 10000,
         hours_per_day: float = 8.0,
+        recorder: Recorder | None = None,
     ) -> None:
         self.hub = hub
         self.session = session
@@ -257,8 +286,8 @@ class YouTubeChat:
         self.min_cycle_s = min_connection_cycle_s(quota_per_day, hours_per_day)
         self._last_open: float | None = None
         self.pb2, self.pb2_grpc = protogen.load()
-        self._seen: deque[str] = deque(maxlen=4000)
-        self._seen_set: set[str] = set()
+        self.dispatcher = YouTubeDispatcher(hub, self.pb2)
+        self.recorder = recorder
         self.quota_used = 0
         self.connections = 0
 
@@ -370,7 +399,9 @@ class YouTubeChat:
                         ts = _parse_ts(msg.snippet.published_at)
                         if ts is not None and ts < history_cutoff:
                             continue  # backlog sent on first connect: not live chat
-                        if await self._dispatch(msg) == "ended":
+                        if self.recorder is not None:
+                            self.recorder.youtube(msg.SerializeToString())
+                        if await self.dispatcher.dispatch(msg) == "ended":
                             return
                     if response.offline_at:
                         return
@@ -394,22 +425,6 @@ class YouTubeChat:
             # Server closed the stream normally: resume from the last page token.
             log.info("chat connection #%d closed normally by YouTube after %.0fs (%d batches); resuming",
                      self.connections, time.monotonic() - opened, responses)
-
-    async def _dispatch(self, msg: Any) -> str:
-        action, payload = map_message(self.pb2, msg)
-        if action == "add":
-            if payload.id in self._seen_set:
-                return action
-            if len(self._seen) == self._seen.maxlen:
-                self._seen_set.discard(self._seen[0])
-            self._seen.append(payload.id)
-            self._seen_set.add(payload.id)
-            await self.hub.add(payload)
-        elif action == "delete":
-            await self.hub.moderate("youtube", "delete", ids=[payload])
-        elif action in ("timeout", "ban"):
-            await self.hub.moderate("youtube", action, user_id=payload)
-        return action
 
 
 def _error_reason(body: Any) -> str:

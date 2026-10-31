@@ -8,6 +8,7 @@ import unittest
 from chatmerge import protogen
 from chatmerge.hub import Hub
 from chatmerge.models import ChatItem, text_frag
+from chatmerge.settings import OverlaySettings
 from chatmerge.seventv import SevenTV, parse_emote_set
 from chatmerge.twitch_irc import (
     item_from_privmsg,
@@ -286,7 +287,7 @@ class CustomEmoteAndHideTests(unittest.TestCase):
 
     def test_hub_hides_bots_and_only_converts_youtube(self) -> None:
         async def run() -> Hub:
-            hub = Hub(hide_users=["Nightbot", "@StreamBot"], custom_emotes=self.ce)
+            hub = Hub(settings=OverlaySettings(hide_users=["Nightbot", "@StreamBot"]), custom_emotes=self.ce)
             for author, platform, text in (("nightbot", "twitch", "!discord"), ("@streambot", "youtube", "hi"),
                                            ("viewer", "youtube", ":_lumiHeart:"), ("viewer2", "twitch", ":_lumiHeart:")):
                 await hub.add(ChatItem(id=author + platform, platform=platform, kind="chat", author=author,
@@ -312,8 +313,7 @@ class PacingTests(unittest.TestCase):
 
 class ModerationTests(unittest.TestCase):
     def _hub(self, **kw):  # type: ignore[no-untyped-def]
-        from chatmerge.moderation import ModerationSettings
-        hub = Hub(moderation=ModerationSettings(**kw))
+        hub = Hub(settings=OverlaySettings(**kw))
         ws = FakeWS()
         asyncio.run(hub.attach(ws))  # type: ignore[arg-type]
         return hub, ws
@@ -343,7 +343,8 @@ class ModerationTests(unittest.TestCase):
         self.assertNotIn("removed", recent["2"])           # timeout -> keep
         ops = [m for m in ws.sent if m["op"] == "moderate"]
         self.assertEqual([m["mode"] for m in ops], ["placeholder", "remove"])  # keep sends nothing
-        self.assertEqual(ws.sent[0]["settings"], {"removal_style": "fade", "placeholder_text": "message removed"})
+        self.assertEqual(ws.sent[0]["settings"]["removal_style"], "fade")
+        self.assertEqual(ws.sent[0]["settings"]["placeholder_text"], "message removed")
 
     def test_dock_requests(self) -> None:
         hub, ws = self._hub(on_dock_hide="placeholder")
@@ -381,6 +382,7 @@ class ModerationTests(unittest.TestCase):
         self.assertEqual(ModerationSettings().validate(), [])
         bad = ModerationSettings(on_ban="explode", on_dock_hide="keep", removal_style="slow", placeholder_text=" ")
         self.assertEqual(len(bad.validate()), 4)
+        self.assertEqual(len(ModerationSettings(overlay_audience="vips").validate()), 1)
 
 
 if __name__ == "__main__":

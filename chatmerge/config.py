@@ -2,13 +2,15 @@
 from __future__ import annotations
 
 import os
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-from .moderation import ModerationSettings
+from .settings import OverlaySettings, SettingsError, apply_changes
 
-ROOT = Path(__file__).resolve().parent.parent
+# Packaged .exe: user files (config.toml, secrets, emotes, settings.json, logs) sit next to the exe.
+ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = ROOT / "config.toml"
 
 
@@ -31,9 +33,11 @@ class Config:
     quota_per_day: int
     hours_per_day: float
     mention_names: list[str]
-    hide_users: list[str]
     emotes_dir: Path
-    moderation: ModerationSettings
+    overlay: OverlaySettings  # config.toml defaults; settings.json (dock) overrides
+    settings_path: Path
+    logs_dir: Path
+    root: Path
 
 
 def _secrets_dir(raw: str) -> Path:
@@ -55,6 +59,7 @@ def load(path: Path = DEFAULT_CONFIG, demo: bool = False) -> Config:
     twitch = raw.get("twitch", {})
     youtube = raw.get("youtube", {})
     mod = raw.get("moderation", {})
+    filters = raw.get("filters", {})
 
     twitch_enabled = bool(twitch.get("enabled", True))
     channel = str(twitch.get("channel", "")).strip().lstrip("#").lower()
@@ -77,26 +82,14 @@ def load(path: Path = DEFAULT_CONFIG, demo: bool = False) -> Config:
         quota_per_day=int(youtube.get("quota_per_day", 10000)),
         hours_per_day=float(youtube.get("hours_per_day", 8)),
         mention_names=[str(n) for n in display.get("mention_names", [channel] if channel else [])],
-        hide_users=[str(n) for n in display.get("hide_users", [])],
         emotes_dir=ROOT / "emotes",
-        moderation=ModerationSettings(
-            on_delete=str(mod.get("on_delete", "remove")),
-            on_timeout=str(mod.get("on_timeout", "remove")),
-            on_ban=str(mod.get("on_ban", "remove")),
-            on_clear=str(mod.get("on_clear", "remove")),
-            on_dock_hide=str(mod.get("on_dock_hide", "remove")),
-            placeholder_text=str(mod.get("placeholder_text", "message removed")),
-            removal_style=str(mod.get("removal_style", "fade")),
-            blocked_words=[str(w) for w in mod.get("blocked_words", [])],
-            block_links=bool(mod.get("block_links", False)),
-            exempt_mods=bool(mod.get("exempt_mods", True)),
-        ),
+        overlay=_overlay_settings(path, display, mod, filters),
+        settings_path=ROOT / "settings.json",
+        logs_dir=ROOT / "logs",
+        root=ROOT,
     )
     if not demo and not (cfg.twitch_enabled or cfg.youtube_enabled):
         raise ConfigError("Both Twitch and YouTube are disabled in config.toml; nothing to show.")
-    problems = cfg.moderation.validate()
-    if problems:
-        raise ConfigError("; ".join(problems))
     if not 100 <= cfg.quota_per_day <= 10_000_000:
         raise ConfigError(f"[youtube] quota_per_day must be at least 100 (got {cfg.quota_per_day}).")
     if not 0.5 <= cfg.hours_per_day <= 24:
@@ -104,3 +97,25 @@ def load(path: Path = DEFAULT_CONFIG, demo: bool = False) -> Config:
     if cfg.host not in ("127.0.0.1", "localhost"):
         raise ConfigError(f"server.host must stay 127.0.0.1 (got {cfg.host!r}); the overlay is local only.")
     return cfg
+
+
+_OVERLAY_KEYS = {
+    "moderation": ("on_delete", "on_timeout", "on_ban", "on_clear", "on_dock_hide", "placeholder_text",
+                   "removal_style", "blocked_words", "block_links", "exempt_mods"),
+    "filters": ("hide_commands", "hide_known_bots", "hide_tip_bots", "overlay_audience"),
+    "display": ("hide_users",),
+}
+
+
+def _overlay_settings(path: Path, display: dict, mod: dict, filters: dict) -> OverlaySettings:
+    """Strictly typed: a typo like blocked_words = "spoiler" (not a list) stops with a clear error."""
+    sections = {"moderation": mod, "filters": filters, "display": display}
+    changes = {}
+    for section, keys in _OVERLAY_KEYS.items():
+        for key in keys:
+            if key in sections[section]:
+                changes[key] = sections[section][key]
+    try:
+        return apply_changes(OverlaySettings(), changes)
+    except SettingsError as exc:
+        raise ConfigError(f'in "{path}": ' + "; ".join(exc.problems)) from exc

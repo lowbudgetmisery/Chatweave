@@ -4,15 +4,19 @@
   python -m chatmerge demo           fake feed, for placing the overlay in OBS
   python -m chatmerge auth-youtube   one-time YouTube login (opens the browser)
   python -m chatmerge check          validate config, proto build and token presence
+  python -m chatmerge replay FILE    play a recording (made with run --record) into the overlay
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
 import logging
+import logging.handlers
 import sys
 import traceback
 from collections.abc import Awaitable, Callable
+from pathlib import Path
+from typing import Any
 
 import aiohttp
 from aiohttp import web
@@ -22,8 +26,10 @@ from . import __version__, mentions, protogen
 from .custom_emotes import CustomEmotes
 from .demo import run_demo
 from .hub import Hub
+from .recorder import Recorder, RecordingError, read_recording, replay
 from .seventv import SevenTV
 from .server import build_app
+from .settings import SettingsError, SettingsStore
 
 log = logging.getLogger("chatmerge")
 
@@ -42,15 +48,39 @@ async def _supervise(name: str, hub: Hub, factory: Callable[[], Awaitable[None]]
             await asyncio.sleep(10)
 
 
-async def _serve(cfg: config_mod.Config, demo: bool, test_video_id: str | None = None) -> None:
-    hub = Hub(
+def _make_hub(cfg: config_mod.Config) -> Hub:
+    store = SettingsStore(cfg.settings_path, cfg.overlay)
+    try:
+        settings = store.load()
+    except SettingsError as exc:
+        raise config_mod.ConfigError(str(exc)) from exc
+    return Hub(
         backlog=cfg.backlog,
         mention_pattern=mentions.build_pattern(cfg.mention_names),
-        hide_users=cfg.hide_users,
         custom_emotes=CustomEmotes(cfg.emotes_dir),
-        moderation=cfg.moderation,
+        settings=settings,
+        store=store,
     )
-    runner = web.AppRunner(build_app(hub, emotes_dir=cfg.emotes_dir))
+
+
+class _NoSocket:
+    """Stands in for the Twitch websocket during replay (PING replies go nowhere)."""
+
+    async def send_str(self, _: str) -> None:
+        return None
+
+
+async def _serve(
+    cfg: config_mod.Config,
+    mode: str,
+    test_video_id: str | None = None,
+    record: bool = False,
+    replay_file: Path | None = None,
+    speed: float = 1.0,
+) -> None:
+    """mode: run (live chat), demo (fake feed) or replay (a recording)."""
+    hub = _make_hub(cfg)
+    runner = web.AppRunner(build_app(hub, emotes_dir=cfg.emotes_dir, port=cfg.port))
     await runner.setup()
     site = web.TCPSite(runner, cfg.host, cfg.port)
     await site.start()
@@ -59,32 +89,98 @@ async def _serve(cfg: config_mod.Config, demo: bool, test_video_id: str | None =
     print(f"Overlay (OBS browser source): {base}")
     print(f"Events window (OBS browser source): {base}events")
     print(f"Dock (OBS custom browser dock): {base}?dock=1")
+    print(f'Log file: "{cfg.logs_dir / "chatmerge.log"}"')
+
+    recorder: Recorder | None = None
+    if record:
+        recorder = Recorder(Recorder.new_path(cfg.root / "recordings"), __version__, cfg.twitch_channel)
+        print(f'RECORDING chat to "{recorder.path}" (real viewers\' messages: keep it private)')
     print("Press Ctrl+C to stop.")
 
     tasks: list[asyncio.Task[None]] = []
-    async with aiohttp.ClientSession() as session:
-        if demo:
-            tasks.append(asyncio.create_task(run_demo(hub)))
-        else:
-            if cfg.twitch_enabled:
-                from .twitch_irc import TwitchChat
+    try:
+        async with aiohttp.ClientSession() as session:
+            if mode == "demo":
+                tasks.append(asyncio.create_task(run_demo(hub)))
+            elif mode == "replay":
+                assert replay_file is not None
+                tasks.append(asyncio.create_task(_replay(hub, session, replay_file, speed)))
+            else:
+                if cfg.twitch_enabled:
+                    from .twitch_irc import TwitchChat
 
-                twitch = TwitchChat(cfg.twitch_channel, hub, session, SevenTV(session))
-                tasks.append(asyncio.create_task(_supervise("twitch", hub, twitch.run)))
-            if cfg.youtube_enabled:
-                from .youtube_live import YouTubeChat
+                    twitch = TwitchChat(cfg.twitch_channel, hub, session, SevenTV(session), recorder=recorder)
+                    tasks.append(asyncio.create_task(_supervise("twitch", hub, twitch.run)))
+                if cfg.youtube_enabled:
+                    from .youtube_live import YouTubeChat
 
-                youtube = YouTubeChat(
-                    hub, session, cfg.token, cfg.detect_interval_s, test_video_id=test_video_id,
-                    quota_per_day=cfg.quota_per_day, hours_per_day=cfg.hours_per_day,
-                )
-                tasks.append(asyncio.create_task(_supervise("youtube", hub, youtube.run)))
-        try:
-            await asyncio.gather(*tasks)
-        finally:
-            for task in tasks:
-                task.cancel()
-            await runner.cleanup()
+                    youtube = YouTubeChat(
+                        hub, session, cfg.token, cfg.detect_interval_s, test_video_id=test_video_id,
+                        quota_per_day=cfg.quota_per_day, hours_per_day=cfg.hours_per_day, recorder=recorder,
+                    )
+                    tasks.append(asyncio.create_task(_supervise("youtube", hub, youtube.run)))
+            try:
+                await asyncio.gather(*tasks)
+                if mode == "replay":
+                    print("Replay finished. The overlay stays up; press Ctrl+C to stop.")
+                    await asyncio.Event().wait()
+            finally:
+                for task in tasks:
+                    task.cancel()
+                await runner.cleanup()
+    finally:
+        if recorder is not None:
+            recorder.close()
+
+
+async def _replay(hub: Hub, session: aiohttp.ClientSession, path: Path, speed: float) -> None:
+    from .twitch_irc import TwitchChat
+
+    header, entries = read_recording(path)
+    channel = str(header.get("twitch_channel") or "replay")
+    pace = "as fast as possible" if speed == 0 else f"at {speed:g}x speed"
+    await hub.set_status("replay", f'playing "{path.name}" {pace} (recorded {header.get("started", "?")})')
+    seventv = SevenTV(session)
+    await seventv.load_global()
+    twitch = TwitchChat(channel, hub, session, seventv)
+    sock = _NoSocket()
+    youtube: Any = None  # (pb2, dispatcher), built on the first YouTube line
+
+    async def on_twitch(line: str) -> None:
+        await twitch.handle_line(sock, line)  # type: ignore[arg-type]
+
+    async def on_youtube(raw: bytes) -> None:
+        nonlocal youtube
+        if youtube is None:
+            from .youtube_live import YouTubeDispatcher
+
+            pb2, _ = protogen.load()
+            youtube = (pb2, YouTubeDispatcher(hub, pb2))
+        pb2, dispatcher = youtube
+        msg = pb2.LiveChatMessage()
+        msg.ParseFromString(raw)
+        await dispatcher.dispatch(msg)
+
+    count = await replay(entries, on_twitch, on_youtube, speed)
+    await hub.set_status("replay", f'finished "{path.name}" ({count} lines)')
+
+
+def _setup_logging(verbose: bool) -> None:
+    logging.basicConfig(
+        level=logging.DEBUG if verbose else logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+    )
+
+
+def _add_log_file(logs_dir: Path) -> None:
+    """logs/chatmerge.log, kept to about 6 MB (3 files). Send it along when reporting a problem."""
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    handler = logging.handlers.RotatingFileHandler(
+        logs_dir / "chatmerge.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8"
+    )
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    logging.getLogger().addHandler(handler)
 
 
 def _check(cfg: config_mod.Config) -> int:
@@ -104,23 +200,23 @@ def _check(cfg: config_mod.Config) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chatmerge")
-    parser.add_argument("command", nargs="?", default="run", choices=["run", "demo", "auth-youtube", "check"])
+    parser.add_argument("command", nargs="?", default="run", choices=["run", "demo", "auth-youtube", "check", "replay"])
+    parser.add_argument("file", nargs="?", default="", help="replay: the recording to play")
     parser.add_argument("--config", default=str(config_mod.DEFAULT_CONFIG))
     parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument("--youtube-url", default="", help="TEST MODE: read this public live stream's chat instead of your own")
+    parser.add_argument("--record", action="store_true", help="run: also save raw chat to the recordings folder")
+    parser.add_argument("--speed", type=float, default=1.0, help="replay: 2 = twice as fast, 0 = all at once")
     args = parser.parse_args(argv)
-
-    logging.basicConfig(
-        level=logging.DEBUG if args.verbose else logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        datefmt="%H:%M:%S",
-    )
+    _setup_logging(args.verbose)
     if sys.platform == "win32":
         # grpc.aio needs a selector loop on Windows; aiohttp works on either.
         asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
     try:
-        cfg = config_mod.load(config_mod.Path(args.config), demo=args.command == "demo")
+        cfg = config_mod.load(config_mod.Path(args.config), demo=args.command in ("demo", "replay"))
+        _add_log_file(cfg.logs_dir)
+        log.info("chatmerge %s starting: %s", __version__, args.command)
         if args.command == "check":
             return _check(cfg)
         if args.command == "auth-youtube":
@@ -148,9 +244,20 @@ def main(argv: list[str] | None = None) -> int:
                 f'YouTube login missing: "{cfg.token}". Double-click "YouTube Login.bat" first, '
                 'or set [youtube] enabled = false in config.toml to run Twitch only.'
             )
-        asyncio.run(_serve(cfg, demo=args.command == "demo", test_video_id=test_video_id))
+        replay_file: Path | None = None
+        if args.command == "replay":
+            if not args.file:
+                raise config_mod.ConfigError("replay needs a recording file: python -m chatmerge replay recordings\\chat_....jsonl")
+            replay_file = Path(args.file).expanduser().resolve()
+            read_recording(replay_file)  # fail now, before the server starts, if the file is bad
+            if not 0 <= args.speed <= 100:
+                raise config_mod.ConfigError(f"--speed must be between 0 and 100 (got {args.speed})")
+        if args.record and args.command != "run":
+            raise config_mod.ConfigError("--record only works with the run command")
+        asyncio.run(_serve(cfg, args.command, test_video_id=test_video_id, record=args.record,
+                           replay_file=replay_file, speed=args.speed))
         return 0
-    except config_mod.ConfigError as exc:
+    except (config_mod.ConfigError, RecordingError) as exc:
         print(f"CONFIG ERROR: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:

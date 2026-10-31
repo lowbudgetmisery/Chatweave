@@ -34,8 +34,10 @@ jobs:
       - name: Smoke test the built app
         shell: powershell
         run: |
-          $exe = ".\dist\chatmerge\chatmerge.exe"
-          $out = (& $exe check 2>&1 | Out-String)
+          $exe = (Resolve-Path ".\dist\chatmerge\chatmerge.exe").Path
+          # cmd merges the app's log lines (stderr) into the output. Done in PowerShell 5.1 with
+          # 2>&1, those lines become errors and stop the step before anything is checked.
+          $out = (cmd /c "`"$exe`" check 2>&1" | Out-String)
           Write-Host $out
           # No YouTube login on the build machine, so "check" exits 1; it must still load the bundled YouTube code.
           if ($out -notmatch "YouTube proto: built in") { throw "packaged app could not load its YouTube code" }

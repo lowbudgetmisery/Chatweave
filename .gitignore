@@ -1,0 +1,14 @@
+# Private: YouTube login and OAuth client. Never commit.
+secrets/
+# Per-machine state
+.venv/
+settings.json
+logs/
+recordings/
+data/
+# Generated
+__pycache__/
+chatmerge/_gen/
+build/
+dist/
+*.spec.bak

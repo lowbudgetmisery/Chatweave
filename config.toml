@@ -1,0 +1,46 @@
+# chatmerge settings. Edit, save, then restart "Start Chat.bat".
+
+[server]
+host = "127.0.0.1"     # local only, do not change
+port = 8787            # change only if another app already uses 8787
+backlog = 50           # lines kept in memory so an OBS refresh does not wipe chat
+
+[twitch]
+enabled = true
+channel = "kanekolumi" # Twitch login name (the part after twitch.tv/)
+
+[display]
+# Messages that @mention any of these names get a gold highlight (not case sensitive).
+mention_names = ["kanekolumi", "lumi"]
+# Accounts whose messages never show (bots). Example: ["nightbot", "fossabot"]
+# Careful: tip bots like StreamElements also announce tips; hiding them hides those too.
+hide_users = []
+
+[moderation]
+# What the overlay does when a mod acts in Twitch or YouTube (or you use the dock):
+#   "remove" = the line disappears
+#   "placeholder" = the name stays, the text becomes placeholder_text
+#   "keep" = the overlay doesn't change
+on_delete = "remove"      # one message deleted
+on_timeout = "remove"     # all lines from a timed-out person
+on_ban = "remove"         # all lines from a banned person
+on_clear = "remove"       # Twitch /clear (YouTube has no clear)
+on_dock_hide = "remove"   # the Hide button in your dock ("remove" or "placeholder")
+placeholder_text = "message removed"
+removal_style = "fade"    # "fade" or "instant"
+# Messages with these words never show (whole words, any capitalization).
+# Paid events keep their "Super Chat $10" line but lose the text.
+blocked_words = []
+block_links = false       # true = hide any message containing a link
+exempt_mods = true        # you and your mods are never blocked
+
+[youtube]
+enabled = true                              # false = Twitch only, no Google setup needed
+secrets_dir = ""                            # empty = the "secrets" folder next to this file
+client_secret_file = "client_secret.json"   # Desktop-app OAuth client downloaded from Google Cloud
+token_file = "youtube_token.json"           # written by "YouTube Login.bat"
+detect_interval_s = 30                      # how often to check whether you are live (1 quota unit each)
+# YouTube's free daily allowance and how many hours of YouTube chat per day it should cover.
+# Up to ~6 h needs no pacing; above that, YouTube messages arrive a few seconds later in small bursts.
+quota_per_day = 10000
+hours_per_day = 8

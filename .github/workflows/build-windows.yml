@@ -16,14 +16,17 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
+        id: py
         with:
           python-version: "3.12"
 
       - name: Build (runs the self-tests first)
         shell: powershell
+        env:
+          CHATMERGE_PYTHON: ${{ steps.py.outputs.python-path }}  # build with exactly this Python, not the newest installed
         run: |
           & powershell -NoProfile -ExecutionPolicy Bypass -File ".\build_exe.ps1"
           if ($LASTEXITCODE -ne 0) { throw "build_exe.ps1 failed with code $LASTEXITCODE" }
@@ -38,7 +41,7 @@ jobs:
           if ($out -notmatch "YouTube proto: built in") { throw "packaged app could not load its YouTube code" }
           $global:LASTEXITCODE = 0  # the expected "login missing" exit code must not fail this step
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: chatmerge-windows
           path: dist/chatmerge_app_v*.zip

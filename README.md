@@ -36,7 +36,7 @@ Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). *
 - Windows 10 or 11
 - OBS Studio
 - **Easiest: the ready-made Windows app**, no Python needed. Download the newest `chatmerge_app_v....zip` from this repo's **Releases** page (right side of the GitHub page), then follow the setup below; skip step 2.
-- Or, to run from the source code: **Python 3.11, 3.12 or 3.13** from [python.org](https://www.python.org/downloads/windows/). During install, tick **"Add python.exe to PATH"**.
+- Or, to run from the source code: **Python 3.12** (3.11 to 3.14 work) from [python.org](https://www.python.org/downloads/windows/). During install, tick **"Add python.exe to PATH"**. Setup picks a supported version even if a newer Python is also installed.
 - A Google account that manages your YouTube channel (only for the YouTube part)
 
 ---

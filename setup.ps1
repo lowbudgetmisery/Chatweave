@@ -5,17 +5,20 @@ $Venv = Join-Path $Root ".venv"
 $Py = Join-Path $Venv "Scripts\python.exe"
 
 function Find-Python {
+    # Tested versions first. "py -3" alone picks the NEWEST Python installed, which can be one
+    # the pinned packages don't support yet (found on GitHub's build machine: Python 3.15).
     # Local to this function: a Python stub that writes to stderr (like the Microsoft Store
     # placeholder) must mean "try the next one", not stop the whole script.
     $ErrorActionPreference = "Continue"
-    foreach ($candidate in @(@("py", "-3"), @("python"))) {
+    $candidates = @(@("py", "-3.12"), @("py", "-3.13"), @("py", "-3.11"), @("py", "-3.14"), @("python"))
+    foreach ($candidate in $candidates) {
         $exe = $candidate[0]
         if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { continue }
         $extra = @($candidate | Select-Object -Skip 1)
         $ver = & $exe @extra -c "import sys; print('%d.%d' % sys.version_info[:2])" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $ver -and [version]$ver -ge [version]"3.11") { return , $candidate }
+        if ($LASTEXITCODE -eq 0 -and $ver -and [version]$ver -ge [version]"3.11" -and [version]$ver -le [version]"3.14") { return , $candidate }
     }
-    throw "Python 3.11 or newer not found. Install it from python.org (tick 'Add python.exe to PATH'), then run setup again."
+    throw "No supported Python found (3.11 to 3.14; 3.12 recommended). Install Python 3.12 from python.org (tick 'Add python.exe to PATH'), then run this again."
 }
 
 if (-not (Test-Path -LiteralPath $Py)) {

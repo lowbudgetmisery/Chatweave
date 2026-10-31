@@ -2,6 +2,7 @@
 
 ## 1.8.2
 
+- Fixed: Setup and the app build picked the newest installed Python, which can be too new for the pinned packages (found on GitHub's build machine with Python 3.15). They now prefer 3.12, then 3.13, 3.11, 3.14.
 - Added: GitHub builds the Windows app (`chatmerge.exe`, no Python needed) for every update; tagged versions are published on the Releases page.
 
 From a live test on a real Twitch channel and an unlisted YouTube stream:

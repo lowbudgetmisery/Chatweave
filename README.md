@@ -4,6 +4,8 @@
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
+Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). **Using it for your own channel:** in `config.toml`, put your Twitch name in `channel`, your names in `mention_names`, and make your own YouTube connection (step 3). Nothing else is tied to one channel.
+
 ![Demo of the overlay with sample messages](preview.png)
 
 *(The preview uses made-up demo messages and a stand-in font; in OBS it uses Lexend and Quicksand.)*
@@ -115,7 +117,7 @@ When the window says `Saved YouTube token`, you're done.
 You don't have to go live to check everything works:
 
 - **Looks and OBS placement:** double-click **`Start Demo.bat`** (fake messages, no internet needed).
-- **Real Twitch chat:** put any busy live channel in `config.toml` (`channel = "..."`) and run **`Start Chat.bat`**. You'll see real chat, emotes, subs, bits and raids from that channel. Put `kanekolumi` back afterwards.
+- **Real Twitch chat:** put any busy live channel in `config.toml` (`channel = "..."`) and run **`Start Chat.bat`**. You'll see real chat, emotes, subs, bits and raids from that channel. Put your own channel back afterwards.
 - **Real YouTube chat:** double-click **`Test YouTube Stream.bat`**, then paste the link of any public YouTube live stream (open the stream, click **Share**, copy the link). It reads that stream's chat instead of yours, alongside your Twitch channel. Needs the YouTube login from step 4 first. Close it when done; the normal `Start Chat.bat` goes back to finding your own stream.
 
 Tip for the first real stream: keep your old chat source in OBS, just hidden. If anything looks off, unhide the old one and hide the new one.
@@ -282,4 +284,4 @@ Speed `4` plays four times faster; `0` plays it all at once. Recordings contain 
 
 ---
 
-*Unofficial fan-made tool, built by lowbudgetmisery. Not affiliated with Twitch, YouTube, Google or 7TV.*
+*Unofficial fan-made tool, built by lowbudgetmisery. Free to use, change and share under the MIT license (see `LICENSE`). Not affiliated with Twitch, YouTube, Google, 7TV or Phase Connect.*

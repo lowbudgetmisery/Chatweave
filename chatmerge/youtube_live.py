@@ -357,7 +357,7 @@ class YouTubeChat:
                     if resp.status != 200:
                         reason = _error_reason(body)
                         wait = 600.0 if reason == "quotaExceeded" else self.detect_interval_s
-                        await self.hub.set_status("youtube", f"lookup failed: HTTP {resp.status} {reason}")
+                        await self.hub.set_status("youtube", lookup_failure_text(resp.status, reason))
                         await asyncio.sleep(wait)
                         continue
             except (aiohttp.ClientError, TimeoutError) as exc:
@@ -433,6 +433,23 @@ class YouTubeChat:
             # Server closed the stream normally: resume from the last page token.
             log.info("chat connection #%d closed normally by YouTube after %.0fs (%d batches); resuming",
                      self.connections, time.monotonic() - opened, responses)
+
+
+# Plain-language fixes for the lookup errors people actually hit.
+LOOKUP_HINTS = {
+    "liveStreamingNotEnabled": "the channel the app is logged in to can't live stream. Usually the login "
+                               'picked a different channel: run "YouTube Login.bat" and pick the channel you stream on',
+    "quotaExceeded": "today's free YouTube allowance is used up; it resets at midnight Pacific time",
+    "insufficientPermissions": 'the YouTube login is missing permission: run "YouTube Login.bat" again',
+    "forbidden": 'YouTube refused access for this login: run "YouTube Login.bat" and pick the channel you stream on',
+}
+
+
+def lookup_failure_text(status: int, reason: str) -> str:
+    hint = LOOKUP_HINTS.get(reason)
+    if hint:
+        return f"can't check for your stream: {hint} (HTTP {status} {reason})"
+    return f"lookup failed: HTTP {status} {reason}".strip()
 
 
 def _error_reason(body: Any) -> str:

@@ -1,6 +1,6 @@
 # Merged Chat for OBS (Twitch + YouTube)
 
-*Version 1.8.1. The black window from `Start Chat.bat` prints the version on its first line.*
+*Version 1.8.2. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
@@ -212,7 +212,8 @@ Each one can be:
 - **Clear overlay** (top right): click once, it turns red and says *Click again to clear*; click again within 3 seconds to empty the chat and events windows. Always a full removal.
 
 Good to know:
-- Twitch deletes, timeouts, bans and `/clear` all come through. YouTube timeouts and bans come through; single deleted YouTube messages should too, but that hasn't been confirmed on a real stream yet.
+- Twitch deletes, timeouts, bans and `/clear` all come through (tested on a real channel).
+- **YouTube doesn't tell outside apps when a single message is removed**, so those can't be mirrored. Tested Oct 2026: the removed message arrived, and YouTube sent nothing afterwards. Use **Hide** in your dock for those (one click). YouTube timeouts and bans use a separate notice that YouTube documents as sent.
 - Bans don't link across platforms. Someone banned on Twitch can still show up from their YouTube account; ban them there too.
 - If a mod acts after a line has already scrolled away, nothing visible changes.
 
@@ -259,6 +260,7 @@ Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits l
 | "YouTube login missing" | Do steps 3 and 4. Or turn YouTube off in `config.toml` to run Twitch only. |
 | YouTube chat stopped after about a week | The login expired. Run `YouTube Login.bat` again (see the 7-day note in step 4). |
 | YouTube chat doesn't appear | Check the status line in the dock. It needs your stream to be live on the channel you logged in with, and live chat turned on. |
+| Dock says "can't check for your stream: the channel the app is logged in to can't live stream" | Your Google account has more than one channel and the login picked another one. Run `YouTube Login.bat` and pick the channel you stream on. |
 | Overlay is blank in OBS, but the dock works in a normal browser | The OBS source loaded while the app wasn't running, and OBS doesn't retry on its own. Right-click the source, **Refresh**. To avoid it: start `Start Chat.bat` before OBS, or tick **Refresh browser when scene becomes active** in the source's properties. |
 | Overlay is blank in OBS | Make sure `Start Chat.bat` is running, then right-click the browser source and click **Refresh**. |
 | Text in OBS looks tiny or blurry | The source was resized in OBS. Right-click it, **Transform**, **Reset Transform**, and change the size with `?scale=` in the URL instead. |

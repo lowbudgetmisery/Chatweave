@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.8.2
+
+From a live test on a real Twitch channel and an unlisted YouTube stream:
+- Confirmed live: YouTube finds your own stream by itself; Twitch deletes and slow mode on/off.
+- Found: YouTube does not report single removed messages to outside apps (the removed message arrived; nothing followed). README now says so and points to the dock's Hide button.
+- Changed: plain-language YouTube lookup errors, for example "the channel the app is logged in to can't live stream ... run YouTube Login.bat and pick the channel you stream on" instead of "HTTP 403 liveStreamingNotEnabled".
+
 ## 1.8.1
 
 From a 39-minute live recording (Twitch + YouTube, 3,927 lines, replayed with zero errors):

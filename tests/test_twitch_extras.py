@@ -145,5 +145,15 @@ class YouTubeMembersOnlyTests(unittest.TestCase):
         self.assertNotIn("youtube chat", hub.status)
 
 
+class LookupMessageTests(unittest.TestCase):
+    def test_plain_language(self) -> None:
+        from chatmerge.youtube_live import lookup_failure_text
+
+        text = lookup_failure_text(403, "liveStreamingNotEnabled")
+        self.assertIn("YouTube Login.bat", text)
+        self.assertIn("liveStreamingNotEnabled", text)  # the exact code stays for troubleshooting
+        self.assertEqual(lookup_failure_text(500, "backendError"), "lookup failed: HTTP 500 backendError")
+
+
 if __name__ == "__main__":
     unittest.main()

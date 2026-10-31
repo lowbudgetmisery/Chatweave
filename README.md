@@ -153,7 +153,7 @@ Examples: `http://127.0.0.1:8787/?max=6&scale=1.2` or `http://127.0.0.1:8787/eve
 **Bots and commands:** `[filters]` in `config.toml`:
 - `hide_known_bots = true` hides Nightbot, Fossabot, Moobot, Wizebot, Sery_Bot and Botisimo.
 - `hide_tip_bots = false` keeps StreamElements, Streamlabs and SoundAlerts, because hiding them also hides their tip announcements.
-- `hide_commands = true` hides lines starting with `!word`. Paid lines (bits, Super Chats) always show.
+- `hide_commands = true` hides lines starting with `!word`. Paid lines (bits, Super Chats) never count as commands. (Names on the hidden list stay hidden, paid or not.)
 - `hide_users = ["someviewer"]` under `[display]` hides any other names (any capitalization, Twitch and YouTube).
 
 **Sub-only overlay:** `overlay_audience = "subs"` (or **Shows** in the dock's Settings) shows only Twitch subs, YouTube members, VIPs, mods and you on stream, plus every support event. YouTube doesn't say who is a channel *subscriber*, only who is a *member*, so on YouTube it's members. This doesn't change your real chat; to actually put chat in sub-only or members-only mode, use the normal Twitch and YouTube chat settings.
@@ -262,7 +262,13 @@ Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits l
 .\run_chat.ps1 -Replay "recordings\chat_2026-10-30_20-00-00.jsonl" -Speed 4
 ```
 
-`-Speed 4` plays four times faster; `-Speed 0` plays it all at once. Recordings contain real viewers' names and messages: keep them private.
+In the app version (with `chatmerge.exe`), from the app folder:
+
+```
+.\chatmerge.exe replay "recordings\chat_2026-10-30_20-00-00.jsonl" --speed 4
+```
+
+Speed `4` plays four times faster; `0` plays it all at once. Recordings contain real viewers' names and messages: keep them private.
 
 ---
 

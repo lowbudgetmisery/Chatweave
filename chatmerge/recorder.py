@@ -34,6 +34,7 @@ class Recorder:
         self._t0 = time.monotonic()
         self._fh: IO[str] = path.open("x", encoding="utf-8", buffering=1)  # "x": never overwrite
         self.count = 0
+        self.failed = False
         self._write({
             "format": FORMAT,
             "format_version": FORMAT_VERSION,
@@ -49,18 +50,31 @@ class Recorder:
     def _write(self, record: dict[str, Any]) -> None:
         self._fh.write(json.dumps(record, ensure_ascii=False) + "\n")
 
+    def _save(self, record: dict[str, Any]) -> None:
+        """Recording is optional: a write failure (disk full, drive gone) stops recording, never chat."""
+        if self.failed:
+            return
+        try:
+            self._write(record)
+            self.count += 1
+        except OSError as exc:
+            self.failed = True
+            log.error('recording stopped: could not write "%s": %s (chat keeps running)', self.path, exc)
+
     def twitch(self, line: str) -> None:
-        self._write({"t": round(time.monotonic() - self._t0, 3), "src": "twitch", "line": line})
-        self.count += 1
+        self._save({"t": round(time.monotonic() - self._t0, 3), "src": "twitch", "line": line})
 
     def youtube(self, raw: bytes) -> None:
-        self._write({"t": round(time.monotonic() - self._t0, 3), "src": "youtube",
-                     "pb": base64.b64encode(raw).decode("ascii")})
-        self.count += 1
+        self._save({"t": round(time.monotonic() - self._t0, 3), "src": "youtube",
+                    "pb": base64.b64encode(raw).decode("ascii")})
 
     def close(self) -> None:
         if not self._fh.closed:
-            self._fh.close()
+            try:
+                self._fh.close()
+            except OSError as exc:
+                log.error('recording "%s" may be incomplete: %s', self.path, exc)
+                return
             log.info('recording saved: "%s" (%d lines)', self.path, self.count)
 
 

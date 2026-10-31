@@ -10,6 +10,7 @@ import asyncio
 import logging
 import random
 import sqlite3
+import threading
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -67,11 +68,11 @@ class GameConfig:
         if self.catch_command.lower() == self.dex_command.lower():
             problems.append("[game] catch_command and dex_command must be different")
         if self.spawn_min_s < 60:
-            problems.append(f"[game] spawn_min_s must be at least 60 (got {self.spawn_min_s:g})")
+            problems.append(f"[game] spawn_min_minutes must be at least 1 (got {self.spawn_min_s / 60:g})")
         if self.spawn_max_s < self.spawn_min_s:
-            problems.append("[game] spawn_max_s must be at least spawn_min_s")
+            problems.append("[game] spawn_max_minutes must be at least spawn_min_minutes")
         if not 15 <= self.window_s <= 300:
-            problems.append(f"[game] window_s must be between 15 and 300 (got {self.window_s:g})")
+            problems.append(f"[game] catch_window_seconds must be between 15 and 300 (got {self.window_s:g})")
         return problems
 
 
@@ -81,7 +82,9 @@ class StarDB:
     def __init__(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         self.path = path
-        self._conn = sqlite3.connect(path, check_same_thread=False)
+        self._lock = threading.Lock()  # one statement at a time across worker threads
+        # Short busy timeout: if the file is open in another program, give up fast and log it.
+        self._conn = sqlite3.connect(path, check_same_thread=False, timeout=2.0)
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS catches ("
             " id INTEGER PRIMARY KEY, platform TEXT NOT NULL, user_id TEXT NOT NULL, name TEXT NOT NULL,"
@@ -91,22 +94,25 @@ class StarDB:
         self._conn.commit()
 
     def record(self, platform: str, user_id: str, name: str, species: Species, spawn_id: str) -> None:
-        self._conn.execute(
-            "INSERT INTO catches(platform, user_id, name, species, rarity, spawn_id, ts) VALUES (?,?,?,?,?,?,?)",
-            (platform, user_id, name, species.key, species.rarity, spawn_id, time.time()),
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO catches(platform, user_id, name, species, rarity, spawn_id, ts) VALUES (?,?,?,?,?,?,?)",
+                (platform, user_id, name, species.key, species.rarity, spawn_id, time.time()),
+            )
+            self._conn.commit()
 
     def summary(self, platform: str, user_id: str) -> tuple[int, int]:
         """(total catches, different species) for one viewer on one platform."""
-        row = self._conn.execute(
-            "SELECT COUNT(*), COUNT(DISTINCT species) FROM catches WHERE platform=? AND user_id=?",
-            (platform, user_id),
-        ).fetchone()
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT COUNT(*), COUNT(DISTINCT species) FROM catches WHERE platform=? AND user_id=?",
+                (platform, user_id),
+            ).fetchone()
         return int(row[0]), int(row[1])
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()
 
 
 @dataclass(slots=True)
@@ -140,6 +146,7 @@ class Starcatch:
         self.spawn: Spawn | None = None
         self._end_task: asyncio.Task[None] | None = None
         self._dex_last: dict[tuple[str, str], float] = {}
+        self._background: set[asyncio.Task[None]] = set()
         hub.add_hook(self.on_item)
         hub.add_client_op("game_spawn", self._dock_spawn)
 
@@ -182,29 +189,52 @@ class Starcatch:
         await self._publish()
 
     async def on_item(self, item: ChatItem) -> None:
+        """Runs before every chat line is shown, so it only checks the command and hands the
+        work to a background task: the game can never hold up chat."""
         if item.kind != "chat" or self.hub.is_hidden(item):
             return  # hidden users and bots can't play (their names would show on stream)
         text = next((f["v"] for f in item.fragments if f["t"] == "text" and f["v"].strip()), "")
         word = text.strip().split(maxsplit=1)[0].lower() if text.strip() else ""
         if word == self.cfg.catch_command.lower():
-            await self._try_catch(item)
+            # Decide right now, as the line arrives: which star (if any) this throw is for.
+            spawn = self.spawn
+            if spawn is None or spawn.over or time.time() > spawn.ends_at:
+                return
+            who = (item.platform, item.user_id)
+            if who in spawn.attempted:
+                return  # one throw per viewer per star
+            spawn.attempted.add(who)
+            self._spawn_task(self._throw(item, spawn))
         elif word == self.cfg.dex_command.lower():
-            await self._dex(item)
+            self._spawn_task(self._dex(item))
 
-    async def _try_catch(self, item: ChatItem) -> None:
-        spawn = self.spawn
-        if spawn is None or spawn.over or time.time() > spawn.ends_at:
-            return
-        who = (item.platform, item.user_id)
-        if who in spawn.attempted:
-            return  # one throw per viewer per star
-        spawn.attempted.add(who)
+    def _spawn_task(self, coro: Any) -> None:
+        task = asyncio.create_task(coro)
+        self._background.add(task)
+        task.add_done_callback(self._task_done)
+
+    def _task_done(self, task: asyncio.Task[None]) -> None:
+        self._background.discard(task)
+        if not task.cancelled() and task.exception() is not None:
+            log.error("Starcatch task failed: %r", task.exception())
+
+    async def settle(self) -> None:
+        """Wait for queued catches and !stars lookups (tests, shutdown)."""
+        while self._background:
+            await asyncio.gather(*list(self._background), return_exceptions=True)
+
+    async def _throw(self, item: ChatItem, spawn: Spawn) -> None:
         if self.rng.random() < CATCH_CHANCE[spawn.species.rarity]:
             spawn.catchers.append({"name": item.author, "platform": item.platform})
-            await asyncio.to_thread(self.db.record, item.platform, item.user_id, item.author, spawn.species, spawn.id)
+            await self._publish()
+            try:
+                await asyncio.to_thread(self.db.record, item.platform, item.user_id, item.author, spawn.species, spawn.id)
+            except sqlite3.Error as exc:
+                log.error('Starcatch: %s caught a %s but it could not be saved to "%s": %s',
+                          item.author, spawn.species.name, self.db.path, exc)
         else:
             spawn.misses += 1
-        await self._publish()
+            await self._publish()
 
     async def _dex(self, item: ChatItem) -> None:
         who = (item.platform, item.user_id)
@@ -212,7 +242,13 @@ class Starcatch:
         if now - self._dex_last.get(who, -DEX_COOLDOWN_S) < DEX_COOLDOWN_S:
             return
         self._dex_last[who] = now
-        total, kinds = await asyncio.to_thread(self.db.summary, item.platform, item.user_id)
+        if len(self._dex_last) > 2000:  # forget cooldowns that have run out
+            self._dex_last = {k: t for k, t in self._dex_last.items() if now - t < DEX_COOLDOWN_S}
+        try:
+            total, kinds = await asyncio.to_thread(self.db.summary, item.platform, item.user_id)
+        except sqlite3.Error as exc:
+            log.error('Starcatch: could not read "%s" for %s: %s', self.db.path, item.author, exc)
+            return
         text = (f"{item.author}: {total} caught, {kinds} of {len(SPECIES)} kinds" if total
                 else f"{item.author}: no stars yet. Type {self.cfg.catch_command} when one appears!")
         await self.hub.announce({"op": "game_toast", "text": text, "platform": item.platform})

@@ -238,7 +238,15 @@ class Hub:
         if normalize_name(name) in {normalize_name(n) for n in self._settings.hide_users}:
             return
         # Saving the name drops their lines on both platforms (now and later) and redraws every page.
-        await self._update_settings({"hide_users": [*self._settings.hide_users, name]}, reply)
+        # Replies use their own ops so an open Settings panel isn't told its unsaved edits were saved.
+        try:
+            new = apply_changes(self._settings, {"hide_users": [*self._settings.hide_users, name]})
+            await self.apply_settings(new)
+        except (SettingsError, OSError) as exc:
+            problems = exc.problems if isinstance(exc, SettingsError) else [f"could not save settings.json: {exc}"]
+            log.warning("hide user %s failed: %s", name, "; ".join(problems))
+            await reply({"op": "hide_user_error", "errors": problems})
+            return
         log.info("hid %s (%s) from the overlay", name, platform)
 
     async def _update_settings(self, changes: Any, reply: Reply) -> None:

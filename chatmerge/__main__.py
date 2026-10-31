@@ -101,12 +101,13 @@ async def _serve(
 
     tasks: list[asyncio.Task[None]] = []
     star_db = None
+    game_task: asyncio.Task[None] | None = None
     if cfg.game.enabled:
         from .game import StarDB, Starcatch
 
         star_db = StarDB(cfg.data_dir / "starcatch.db")
         game = Starcatch(hub, cfg.game, star_db)
-        tasks.append(asyncio.create_task(_supervise("game", hub, game.run)))
+        game_task = asyncio.create_task(_supervise("game", hub, game.run))  # runs until shutdown
     try:
         async with aiohttp.ClientSession() as session:
             if mode == "demo":
@@ -136,6 +137,8 @@ async def _serve(
             finally:
                 for task in tasks:
                     task.cancel()
+                if game_task is not None:
+                    game_task.cancel()
                 await runner.cleanup()
     finally:
         if recorder is not None:
@@ -168,8 +171,13 @@ async def _replay(hub: Hub, session: aiohttp.ClientSession, path: Path, speed: f
             pb2, _ = protogen.load()
             youtube = (pb2, YouTubeDispatcher(hub, pb2))
         pb2, dispatcher = youtube
+        from google.protobuf.message import DecodeError
+
         msg = pb2.LiveChatMessage()
-        msg.ParseFromString(raw)
+        try:
+            msg.ParseFromString(raw)
+        except DecodeError as exc:
+            raise RecordingError(f'"{path}" has a damaged YouTube line: {exc}') from exc
         await dispatcher.dispatch(msg)
 
     count = await replay(entries, on_twitch, on_youtube, speed)

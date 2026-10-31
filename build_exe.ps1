@@ -15,6 +15,9 @@ function Invoke-Checked([string]$What, [scriptblock]$Command) {
 }
 
 function Find-Python {
+    # Local to this function: a Python stub that writes to stderr (like the Microsoft Store
+    # placeholder) must mean "try the next one", not stop the whole script.
+    $ErrorActionPreference = "Continue"
     foreach ($candidate in @(@("py", "-3"), @("python"))) {
         $exe = $candidate[0]
         if (-not (Get-Command $exe -ErrorAction SilentlyContinue)) { continue }

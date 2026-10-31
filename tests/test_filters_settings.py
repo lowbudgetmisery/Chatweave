@@ -108,6 +108,9 @@ class SettingsTests(unittest.TestCase):
             path = Path(tmp) / "settings.json"
             store = SettingsStore(path, OverlaySettings())
             self.assertEqual(store.load(), OverlaySettings())  # no file yet
+            path.write_bytes(b'\xef\xbb\xbf{"hide_tip_bots": true}')  # saved by Notepad with a BOM
+            self.assertTrue(store.load().hide_tip_bots)
+            path.unlink()
             store.save(apply_changes(OverlaySettings(), {"hide_tip_bots": True}))
             self.assertEqual(json.loads(path.read_text(encoding="utf-8")), {"hide_tip_bots": True})
             # config.toml later changes a value the dock never touched: it still applies
@@ -164,13 +167,17 @@ class DockSettingsTests(unittest.TestCase):
                                                     "name": "Troll9"}), reply)
                 await hub.add(chat("4", author="troll9", platform="youtube"))  # same name, other platform: hidden too
                 await hub.handle_client(json.dumps({"op": "hide_user", "platform": "x", "user_id": "a", "name": "a"}), reply)
+                await hub.handle_client(json.dumps({"op": "hide_user", "platform": "twitch", "user_id": "b",
+                                                    "name": "b" * 150}), reply)  # too long to save
 
             asyncio.run(run())
             self.assertEqual(replies[0], {"op": "settings_saved"})
             self.assertEqual(replies[1]["op"], "settings_error")
             self.assertIn("on_ban", replies[1]["errors"][0])
-            self.assertEqual(replies[2], {"op": "settings_saved"})
-            self.assertEqual(len(replies), 3)  # malformed hide_user ignored
+            # hide_user success sends no reply (an open Settings panel must not think it saved);
+            # malformed ignored; too-long name gets its own error op
+            self.assertEqual(replies[2]["op"], "hide_user_error")
+            self.assertEqual(len(replies), 3)
             self.assertEqual(hub.settings.overlay_audience, "subs")
             self.assertEqual(hub.settings.hide_users, ["Troll9"])
             # the name is hidden on both platforms, including lines already on screen
@@ -218,6 +225,24 @@ class ServerSecurityTests(unittest.TestCase):
 
         out = asyncio.run(run())
         self.assertEqual(out, {"health": 200, "rebind": 403, "own": "hello", "evil": 403})
+
+
+class RecorderFailureTests(unittest.TestCase):
+    def test_write_failure_stops_recording_not_chat(self) -> None:
+        from chatmerge.recorder import Recorder
+
+        with tempfile.TemporaryDirectory() as tmp:
+            rec = Recorder(Path(tmp) / "r.jsonl", "test", "x")
+
+            def disk_full(_: dict) -> None:
+                raise OSError(28, "No space left on device")
+
+            rec._write = disk_full  # type: ignore[method-assign]
+            with self.assertLogs("chatmerge.recorder", level="ERROR"):
+                rec.twitch("PING :tmi.twitch.tv")  # must not raise
+            rec.twitch("second line")             # silently skipped after the failure
+            self.assertTrue(rec.failed)
+            rec.close()
 
 
 class RecordReplayTests(unittest.TestCase):

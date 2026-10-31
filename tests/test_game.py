@@ -67,11 +67,13 @@ class GameTests(unittest.TestCase):
             await hub.add(line("Lemons2", "!catch", "youtube"))
             await hub.add(line("Troll9", "!catch"))               # hidden users can't play
             await hub.add(line("Raccomi3", "catch"))              # not the command
+            await game.settle()                                   # catches run in the background
             assert game.spawn is not None
             await game.finish(game.spawn)
             await hub.add(line("Late", "!catch"))                 # after the window: ignored
             await hub.add(line("Lumi1", "!stars"))
             await hub.add(line("Lumi1", "!stars"))                # cooldown: no second toast
+            await game.settle()
 
         asyncio.run(run())
         spawn = game.spawn
@@ -104,11 +106,42 @@ class GameTests(unittest.TestCase):
             await hub.handle_client('{"op":"game_spawn"}', reply)  # busy
             await hub.add(line("A", "!catch"))
             await hub.add(line("B", "!catch"))
+            await game.settle()
 
         asyncio.run(run())
         assert game.spawn is not None
         self.assertEqual((game.spawn.catchers, game.spawn.misses), ([], 2))
         self.assertEqual(replies, [{"op": "game_busy"}])
+
+    def test_game_never_holds_up_chat(self) -> None:
+        import threading
+        import time as _time
+
+        hub = Hub()
+        game = Starcatch(hub, GameConfig(enabled=True), self.db, rng=AlwaysRoll(0.1))
+        release = threading.Event()
+        real_record = self.db.record
+
+        def slow_record(*args: object) -> None:  # stands in for a locked database file
+            release.wait(5)
+            real_record(*args)  # type: ignore[arg-type]
+
+        self.db.record = slow_record  # type: ignore[method-assign]
+
+        async def run() -> float:
+            await game.spawn_now(SPECIES[0])
+            start = _time.monotonic()
+            await hub.add(line("Lumi1", "!catch"))
+            await hub.add(line("Viewer", "chat keeps flowing"))
+            took = _time.monotonic() - start
+            release.set()
+            await game.settle()
+            return took
+
+        took = asyncio.run(run())
+        self.assertLess(took, 0.5)
+        self.assertEqual([m["author"] for m in hub.recent()], ["Viewer"])
+        self.assertEqual(self.db.summary("twitch", "lumi1"), (1, 1))
 
     def test_rarity_mix(self) -> None:
         game = Starcatch(Hub(), GameConfig(enabled=True), self.db, rng=random.Random(7))

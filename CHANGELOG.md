@@ -14,6 +14,9 @@ Added
 Changed
 - `requirements.txt` now lists exact versions tested together. Run `Setup.bat` again after updating.
 - The server refuses requests addressed to any other host name, and websocket connections from other websites.
+- If recording can't write (disk full), recording stops and chat keeps running.
+- The game does its saving in the background and can never hold up chat.
+- The dock's Settings panel saves only what you changed in it, so it can't undo a Hide user from another dock.
 
 Fixed
 - A fresh install could pick a grpcio-tools whose generated YouTube code needs a newer protobuf than the one installed, so YouTube chat failed to load. The generated code is now rebuilt whenever those package versions change.

@@ -169,7 +169,7 @@ class SettingsStore:
         if not self.path.is_file():
             return self.base
         try:
-            raw = json.loads(self.path.read_text(encoding="utf-8"))
+            raw = json.loads(self.path.read_text(encoding="utf-8-sig"))  # Notepad may add a BOM
         except (OSError, ValueError) as exc:
             raise SettingsError(
                 [f'Could not read "{self.path}": {exc}. Fix it, or rename it to reset the dock settings.']

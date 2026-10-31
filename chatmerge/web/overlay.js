@@ -213,9 +213,15 @@
   function add(item, instant) {
     if (eventsMode && !item.event) return;
     if (!dock && !shownOnStream(item)) return;
+    let hideIn = hideAfter * 1000;
+    if (hideAfter > 0 && instant && item.ts) {
+      // Redraw (OBS refresh, settings change): lines that already faded stay gone.
+      hideIn -= Date.now() - item.ts * 1000;
+      if (hideIn <= 0) return;
+    }
     const node = build(item, instant);
     feed.appendChild(node);
-    if (hideAfter > 0) setTimeout(() => leave(node), hideAfter * 1000);
+    if (hideAfter > 0) setTimeout(() => leave(node), hideIn);
     const rows = live();
     for (let i = 0; i < rows.length - max; i++) {
       if (instant) rows[i].remove(); else leave(rows[i]);
@@ -277,6 +283,9 @@
       case "settings_error":
         if (panel) panel.failed(msg.errors || []);
         break;
+      case "hide_user_error":
+        statusText.textContent = `Hide user failed: ${(msg.errors || []).join("; ")}`;
+        break;
       case "game_busy":
         if (spawnBtn) {
           spawnBtn.textContent = "One is already out";
@@ -309,6 +318,8 @@
     const controls = {};
     let dirty = false;
     let hidden = [];
+    let base = {};          // settings as last loaded into the form
+    let saving = false;     // a Save from this panel is waiting for its answer
 
     function row(label, control, hint) {
       const wrap = el("label", "row");
@@ -411,7 +422,7 @@
     const bar = el("div", "panel-bar");
     const save = el("button", "primary", "Save");
     save.type = "button";
-    save.addEventListener("click", () => {
+    function formValues() {
       const out = {};
       for (const [key, c] of Object.entries(controls)) {
         if (key === "blocked_words") out[key] = c.value.split("\n").map((w) => w.trim()).filter(Boolean);
@@ -419,8 +430,18 @@
         else out[key] = c.value;
       }
       out.hide_users = hidden.slice();
+      return out;
+    }
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    save.addEventListener("click", () => {
+      // Only what was changed here, so a Hide user click (or another dock) since opening isn't undone.
+      const values = formValues();
+      const out = {};
+      for (const [key, v] of Object.entries(values)) if (!same(v, base[key])) out[key] = v;
       msgBox.className = "panel-msg";
+      if (!Object.keys(out).length) { msgBox.textContent = "Nothing changed."; dirty = false; return; }
       msgBox.textContent = "Saving...";
+      saving = true;
       send({ op: "update_settings", settings: out });
     });
     const close = el("button", "", "Close");
@@ -428,29 +449,49 @@
     close.addEventListener("click", () => { dirty = false; root.hidden = true; });
     const reset = el("button", "", "Reset to config.toml");
     reset.type = "button";
-    armButton(reset, "Reset to config.toml", "Click again to reset", () => send({ op: "reset_settings" }));
+    armButton(reset, "Reset to config.toml", "Click again to reset", () => { saving = true; send({ op: "reset_settings" }); });
     bar.append(save, close, reset);
     root.append(el("h2", "", "Overlay settings"), form, msgBox, bar);
     document.body.appendChild(root);
 
-    function fill() {
-      for (const [key, c] of Object.entries(controls)) {
-        const v = settings[key];
-        if (key === "blocked_words") c.value = (v || []).join("\n");
-        else if (c.type === "checkbox") c.checked = !!v;
-        else if (v !== undefined) c.value = v;
+    function setField(key, v) {
+      if (key === "hide_users") { hidden = (v || []).slice(); drawHidden(); return; }
+      const c = controls[key];
+      if (!c) return;
+      if (key === "blocked_words") c.value = (v || []).join("\n");
+      else if (c.type === "checkbox") c.checked = !!v;
+      else if (v !== undefined) c.value = v;
+    }
+    // onlyUntouched: settings changed somewhere else while this form has edits. Take the new
+    // values for fields not edited here and keep the edits.
+    function fill(onlyUntouched) {
+      const current = onlyUntouched ? formValues() : null;
+      for (const key of [...Object.keys(controls), "hide_users"]) {
+        if (onlyUntouched && !same(current[key], base[key])) continue;
+        setField(key, settings[key]);
+        base[key] = JSON.parse(JSON.stringify(settings[key] ?? null));
       }
-      hidden = (settings.hide_users || []).slice();
-      drawHidden();
       chatBotHint.textContent = (botNames.chat || []).join(", ");
       tipBotHint.textContent = (botNames.tip || []).join(", ");
-      dirty = false;
+      if (!onlyUntouched) dirty = false;
     }
     return {
-      toggle() { if (root.hidden) { fill(); msgBox.textContent = ""; } root.hidden = !root.hidden; },
-      refresh() { if (!root.hidden && !dirty) fill(); },
-      saved() { dirty = false; fill(); msgBox.className = "panel-msg ok"; msgBox.textContent = "Saved. The overlay already uses it."; },
-      failed(errors) { msgBox.className = "panel-msg bad"; msgBox.textContent = `Not saved: ${errors.join("; ")}`; },
+      toggle() { if (root.hidden) { fill(false); msgBox.textContent = ""; } root.hidden = !root.hidden; },
+      refresh() { if (!root.hidden) fill(dirty); },
+      saved() {
+        if (!saving) return;
+        saving = false;
+        dirty = false;
+        fill(false);
+        msgBox.className = "panel-msg ok";
+        msgBox.textContent = "Saved. The overlay already uses it.";
+      },
+      failed(errors) {
+        saving = false;
+        if (root.hidden) { statusText.textContent = `Settings not saved: ${errors.join("; ")}`; return; }
+        msgBox.className = "panel-msg bad";
+        msgBox.textContent = `Not saved: ${errors.join("; ")}`;
+      },
     };
   }
   if (dock) {

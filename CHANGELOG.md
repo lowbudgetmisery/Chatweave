@@ -2,6 +2,8 @@
 
 ## 1.8.2
 
+- Added: GitHub builds the Windows app (`chatmerge.exe`, no Python needed) for every update; tagged versions are published on the Releases page.
+
 From a live test on a real Twitch channel and an unlisted YouTube stream:
 - Confirmed live: YouTube finds your own stream by itself; Twitch deletes and slow mode on/off.
 - Found: YouTube does not report single removed messages to outside apps (the removed message arrived; nothing followed). README now says so and points to the dock's Hide button.

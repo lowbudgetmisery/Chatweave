@@ -1,0 +1,59 @@
+# Builds chatmerge.exe on a real Windows machine for every push, using build_exe.ps1 under
+# Windows PowerShell 5.1 (what most streamers have). Pushing a tag like v1.8.2 also publishes
+# the zip on the repo's Releases page, so people can download it without installing Python.
+name: Build Windows app
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed only to publish a release for tags
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build (runs the self-tests first)
+        shell: powershell
+        run: |
+          & powershell -NoProfile -ExecutionPolicy Bypass -File ".\build_exe.ps1"
+          if ($LASTEXITCODE -ne 0) { throw "build_exe.ps1 failed with code $LASTEXITCODE" }
+
+      - name: Smoke test the built app
+        shell: powershell
+        run: |
+          $exe = ".\dist\chatmerge\chatmerge.exe"
+          $out = (& $exe check 2>&1 | Out-String)
+          Write-Host $out
+          # No YouTube login on the build machine, so "check" exits 1; it must still load the bundled YouTube code.
+          if ($out -notmatch "YouTube proto: built in") { throw "packaged app could not load its YouTube code" }
+          $global:LASTEXITCODE = 0  # the expected "login missing" exit code must not fail this step
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: chatmerge-windows
+          path: dist/chatmerge_app_v*.zip
+          if-no-files-found: error
+
+      - name: Publish release (tags only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: powershell
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $zip = Get-ChildItem ".\dist" -Filter "chatmerge_app_v*.zip" | Select-Object -First 1
+          if (-not $zip) { throw "no zip to publish" }
+          $tagVersion = "${{ github.ref_name }}".TrimStart("v")
+          if ($zip.Name -ne "chatmerge_app_v$tagVersion.zip") { throw "tag ${{ github.ref_name }} does not match the app version in $($zip.Name)" }
+          $notes = "Windows app, no Python needed. Download $($zip.Name), right-click it, Properties, tick Unblock, OK, then extract it. Start with Start Chat.bat. See README.md for setup and CHANGELOG.md for what's new."
+          gh release create "${{ github.ref_name }}" "$($zip.FullName)" --title "chatmerge ${{ github.ref_name }}" --notes "$notes"
+          if ($LASTEXITCODE -ne 0) { throw "gh release create failed with code $LASTEXITCODE" }

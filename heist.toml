@@ -1,0 +1,135 @@
+# Gliese Heist: everything the game says and steals. Edit freely, then restart the app.
+# The app checks this file on start and says exactly what's wrong if something is off.
+#
+# Placeholders you can use in lines:
+#   {crew}    the crew name (Gumis)        {one}     one crew member (Gumi)
+#   {count}   how many joined              {target}  the heist target
+#   {item}    the loot (steal race)        {name}    the winner's name (steal race)
+# Use {{ and }} for a literal { or }. When only one joined, {crew} reads as {one}.
+#
+# Keep crew, one, ranks, targets and loot ABOVE the [lines] header: in TOML, anything
+# written under a [section] header belongs to that section.
+
+crew = "Gumis"      # what the whole chat is called
+one = "Gumi"        # one of them
+
+# Stash ranks by how many items someone has stolen in total. Lowest first, starting at 0.
+ranks = [
+  { at = 0, name = "Gumi Recruit" },
+  { at = 3, name = "Pickpocket" },
+  { at = 10, name = "Cat Burglar" },
+  { at = 25, name = "Master Thief" },
+  { at = 50, name = "Lumi's Favorite Gumi" },
+]
+
+# Heist targets. difficulty: 1 easy, 2 normal, 3 hard. Harder = lower odds, better loot.
+targets = [
+  { name = "the last slice of pizza at a sleepover", difficulty = 1 },
+  { name = "every left sock in a laundromat", difficulty = 1 },
+  { name = "a museum gift shop's entire keychain wall", difficulty = 1 },
+  { name = "the jar of spare buttons in Grandma's sewing room", difficulty = 1 },
+  { name = "a city's whole supply of traffic cones", difficulty = 1 },
+  { name = "the shiny pennies from a wishing fountain", difficulty = 1 },
+  { name = "the claw machine's prize that nobody can win", difficulty = 2 },
+  { name = "the Moon's reflection from a puddle", difficulty = 2 },
+  { name = "a dragon's hoard (the dragon is a very large cat)", difficulty = 2 },
+  { name = "the secret recipe from a famous noodle shop", difficulty = 2 },
+  { name = "the golden trophy from a hot-dog-eating contest", difficulty = 2 },
+  { name = "the crown jewels of a country that doesn't exist", difficulty = 2 },
+  { name = "the world's largest ball of yarn", difficulty = 2 },
+  { name = "a sunset, wrapped to go", difficulty = 3 },
+  { name = "the smile off a very famous painting", difficulty = 3 },
+  { name = "the Earth's spare gravity", difficulty = 3 },
+  { name = "the Wi-Fi password from a five-star hotel", difficulty = 3 },
+  { name = "a meteorite from the most guarded museum on Earth", difficulty = 3 },
+]
+
+# Loot. rarity: common, rare or legendary.
+loot = [
+  { name = "a slightly used traffic cone", rarity = "common" },
+  { name = "one (1) left sock", rarity = "common" },
+  { name = "a rubber duck with sunglasses", rarity = "common" },
+  { name = "a keychain that says 'I <3 Earth'", rarity = "common" },
+  { name = "a handful of bubble wrap", rarity = "common" },
+  { name = "a lost TV remote", rarity = "common" },
+  { name = "a spork", rarity = "common" },
+  { name = "the 'wet floor' sign", rarity = "common" },
+  { name = "a mysterious key to nothing", rarity = "common" },
+  { name = "a free sample toothpick", rarity = "common" },
+  { name = "a garden gnome", rarity = "common" },
+  { name = "a pigeon's favorite breadcrumb", rarity = "common" },
+  { name = "a scratched lottery ticket (lost)", rarity = "common" },
+  { name = "an extremely shiny pebble", rarity = "common" },
+  { name = "a golden spatula", rarity = "rare" },
+  { name = "a snow globe with a real snowstorm inside", rarity = "rare" },
+  { name = "a jar of bottled thunder", rarity = "rare" },
+  { name = "the claw machine's plushie", rarity = "rare" },
+  { name = "a pocket watch that runs backwards", rarity = "rare" },
+  { name = "a map to a treasure that's already stolen", rarity = "rare" },
+  { name = "a crown made of bottle caps", rarity = "rare" },
+  { name = "a cat's entire nap spot, still warm", rarity = "rare" },
+  { name = "a sliver of the Moon's reflection", rarity = "legendary" },
+  { name = "a sunset, slightly folded", rarity = "legendary" },
+  { name = "a stardust shard from Gliese 667C", rarity = "legendary" },
+  { name = "the world's last spare gravity", rarity = "legendary" },
+]
+
+[lines]
+# Heist card while chat signs up.
+open = [
+  "Lumi spreads the blueprints across the table. Tonight's target: {target}.",
+  "A new job just came in from Gliese 667C. Target: {target}.",
+  "Lumi grins. \"Gumis, we're taking {target}.\"",
+]
+# Shown one by one while the heist plays out.
+plan = [
+  "Lumi checks the plan. Then checks it again. Then throws it away.",
+  "{count} {crew} pull on their very suspicious disguises.",
+  "The crew sneaks in through the air vents. Someone is humming.",
+]
+sneak = [
+  "The guards are busy arguing about snacks. Perfect.",
+  "A laser grid! Lumi cartwheels through it. The {crew} crawl.",
+  "The vault door is open. It was never locked.",
+  "Lumi cracks the safe by guessing the password: 'password'.",
+]
+# Heist succeeded.
+success = [
+  "Clean getaway! {count} {crew} escape with {target}.",
+  "Lumi beams it all back to Gliese 667C. Light, mischief, and loot for every {one}.",
+  "Nobody saw a thing. The universe's greatest thief strikes again.",
+]
+# Heist failed (always available).
+fail = [
+  "Someone sneezed. Security has been alerted. Everybody run!",
+  "A {one} pressed the big red button. The big red button was the alarm.",
+  "The getaway car was a shopping cart. It did not get away.",
+  "Lumi escaped. The {crew} are still stuck in the air vents.",
+]
+# Extra fail lines in her chat's teasing style. Only used when teasing = true in config.toml.
+fail_teasing = [
+  "The {crew} tripped the alarm. Idiots.",
+  "Lumi had a perfect plan. The {crew} had other ideas. Unhinged.",
+  "{count} {crew}, zero brain cells. Busted.",
+  "Somehow the {crew} stole the security guard instead. Stupid.",
+]
+# Nobody joined the heist.
+solo = [
+  "Nobody showed up, so Lumi did it alone. Who needs {crew} anyway?",
+  "Zero {crew} signed up. Lumi stole {target} by herself and kept all of it.",
+]
+# Steal race card.
+steal_open = [
+  "Unguarded: {item}! First {one} to grab it keeps it.",
+  "Lumi spotted {item} just sitting there. Quick!",
+]
+# Someone won the steal race.
+steal_won = [
+  "{name} swiped {item}!",
+  "{name} was fastest. The loot is theirs now: {item}.",
+]
+# Nobody typed in time.
+steal_nobody = [
+  "Too slow! Lumi pocketed {item} herself.",
+  "The {crew} blinked. Lumi didn't. Goodbye, {item}.",
+]

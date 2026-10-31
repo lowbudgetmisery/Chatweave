@@ -25,7 +25,7 @@ Predicate = Callable[[dict[str, Any]], bool]
 Reply = Callable[[dict[str, Any]], Awaitable[None]]
 # Called with every chat line before any filter runs (the catch game listens here).
 ItemHook = Callable[[ChatItem], Awaitable[None]]
-# A feature's handler for a dock request it owns (for example "game_spawn").
+# A feature's handler for a dock request it owns (for example "game_heist").
 ClientOp = Callable[[dict[str, Any], Reply], Awaitable[None]]
 
 
@@ -89,7 +89,7 @@ class Hub:
         return normalize_name(item.author) in self._lines.hidden_names
 
     async def set_extra(self, key: str, value: Any, broadcast: dict[str, Any] | None = None) -> None:
-        """Feature state included in hello/resync (for example the game's current spawn)."""
+        """Feature state included in hello/resync (for example the game's current event)."""
         self._extra[key] = value
         if broadcast is not None:
             await self._broadcast(broadcast)

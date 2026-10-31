@@ -50,15 +50,20 @@ block_links = false       # true = hide any message containing a link
 exempt_mods = true        # you and your mods are never blocked
 
 [game]
-# Starcatch: a star creature drifts onto the "/game" browser source now and then, and viewers
-# on Twitch or YouTube type !catch to catch it. Results show on stream only; nothing is posted
-# to chat. Catches are saved in data\starcatch.db. The dock gets a "Spawn a star" button.
+# Gliese Heist: Lumi, the universe's greatest thief, plans heists and her Gumis join the crew.
+# Shows on the "/game" browser source only; nothing is posted to chat. The dock gets
+# "Start heist" and "Quick steal" buttons. Stolen loot is saved in data\heist.db.
+# Every target, loot item and line of text is in heist.toml (edit it, then restart).
 enabled = false
-catch_command = "!catch"
-dex_command = "!stars"        # shows "<name>: 12 caught, 5 of 11 kinds" on the game source
-spawn_min_minutes = 7
-spawn_max_minutes = 15
-catch_window_seconds = 60
+heist_command = "!heist"      # join the crew while a heist is signing up
+steal_command = "!steal"      # first one to type it wins a quick steal race
+stash_command = "!stash"      # shows "<name> (Cat Burglar): 14 items stolen, 3 rare" on the game source
+event_min_minutes = 7         # a heist or steal race starts at a random time in this range
+event_max_minutes = 15
+heist_join_seconds = 60
+steal_seconds = 30
+teasing = true                # false = leave out the "Idiots." style fail lines
+content_file = "heist.toml"   # next to this file unless you give a full path
 
 [youtube]
 enabled = true                              # false = Twitch only, no Google setup needed

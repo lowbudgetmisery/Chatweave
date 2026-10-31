@@ -39,7 +39,7 @@
   const modeBox = el("span", "modes"); // chat modes (sub-only, members-only...) as chips that never get cut off
   statusEl.append(statusText, modeBox);
   let panel = null;
-  let spawnBtn = null;
+  let gameBtns = [];
   if (dock) {
     const settingsBtn = el("button", "settings-btn", "Settings");
     settingsBtn.type = "button";
@@ -47,12 +47,17 @@
     const clearBtn = el("button", "clear-btn", "Clear overlay");
     clearBtn.type = "button";
     armButton(clearBtn, "Clear overlay", "Click again to clear", () => send({ op: "clear_overlay" }));
-    // Starcatch: only shown when [game] enabled = true.
-    spawnBtn = el("button", "spawn-btn", "Spawn a star");
-    spawnBtn.type = "button";
-    spawnBtn.hidden = true;
-    spawnBtn.addEventListener("click", () => send({ op: "game_spawn" }));
-    statusEl.append(spawnBtn, settingsBtn, clearBtn);
+    // Gliese Heist: only shown when [game] enabled = true.
+    for (const [which, label] of [["heist", "Start heist"], ["steal", "Quick steal"]]) {
+      const btn = el("button", "game-btn", label);
+      btn.type = "button";
+      btn.hidden = true;
+      btn.dataset.which = which;
+      btn.dataset.label = label;
+      btn.addEventListener("click", () => send({ op: `game_${which}` }));
+      gameBtns.push(btn);
+    }
+    statusEl.append(...gameBtns, settingsBtn, clearBtn);
   }
 
   // Two-click confirm: first click arms (red, new label) for 3 s, second click runs.
@@ -300,7 +305,7 @@
       case "resync": // settings changed: redraw from the app's backlog with the new rules
         if (msg.settings) settings = { ...settings, ...msg.settings };
         if (msg.bot_names) botNames = msg.bot_names;
-        if (spawnBtn) spawnBtn.hidden = !(msg.game && msg.game.enabled);
+        for (const btn of gameBtns) btn.hidden = !(msg.game && msg.game.enabled);
         feed.replaceChildren();
         for (const item of ((eventsMode ? msg.recent_events : msg.recent) || []).filter((i) => dock || shownOnStream(i)).slice(-max)) add(item, true);
         showStatus(msg.status);
@@ -316,9 +321,9 @@
         statusText.textContent = `Hide user failed: ${(msg.errors || []).join("; ")}`;
         break;
       case "game_busy":
-        if (spawnBtn) {
-          spawnBtn.textContent = "One is already out";
-          setTimeout(() => { spawnBtn.textContent = "Spawn a star"; }, 2500);
+        for (const btn of gameBtns.filter((b) => b.dataset.which === msg.which)) {
+          btn.textContent = "One is running";
+          setTimeout(() => { btn.textContent = btn.dataset.label; }, 2500);
         }
         break;
       case "game":

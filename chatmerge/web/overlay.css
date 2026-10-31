@@ -337,7 +337,7 @@ body.dock #status {
   margin-top: calc(-12px * var(--s));  /* close the flex gap too */
   transition: height 420ms ease, opacity 300ms ease, margin-top 420ms ease;
 }
-.hide-btn, .clear-btn, .settings-btn, .spawn-btn {
+.hide-btn, .clear-btn, .settings-btn, .game-btn {
   font: 600 calc(11px * var(--s)) / 1 var(--font-name);
   color: var(--ink-dim);
   background: rgba(150, 175, 255, 0.12);
@@ -358,8 +358,8 @@ body.dock .msg:hover .hide-btn, .hide-btn:focus-visible { opacity: 1; }
 body.dock #status { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; white-space: normal; }
 /* status keeps at least ~150px; when the dock is narrow the buttons wrap to a second row */
 .status-text { flex: 1 1 150px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.clear-btn, .settings-btn, .spawn-btn { flex: none; }
-.settings-btn:hover, .spawn-btn:hover { color: #fff; background: rgba(150, 175, 255, 0.28); }
+.clear-btn, .settings-btn, .game-btn { flex: none; }
+.settings-btn:hover, .game-btn:hover { color: #fff; background: rgba(150, 175, 255, 0.28); }
 .armed, .hide-btn.armed { opacity: 1; color: #fff; background: #d81f2c; border-color: transparent; }
 /* Dock, sub-only overlay: lines viewers don't see on stream */
 body.dock .msg.offstage { opacity: 0.42; }

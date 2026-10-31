@@ -90,7 +90,7 @@ async def _serve(
     print(f"Events window (OBS browser source): {base}events")
     print(f"Dock (OBS custom browser dock): {base}?dock=1")
     if cfg.game.enabled:
-        print(f"Starcatch game (OBS browser source): {base}game")
+        print(f"Gliese Heist game (OBS browser source): {base}game")
     print(f'Log file: "{cfg.logs_dir / "chatmerge.log"}"')
 
     recorder: Recorder | None = None
@@ -100,13 +100,14 @@ async def _serve(
     print("Press Ctrl+C to stop.")
 
     tasks: list[asyncio.Task[None]] = []
-    star_db = None
+    loot_db = None
     game_task: asyncio.Task[None] | None = None
     if cfg.game.enabled:
-        from .game import StarDB, Starcatch
+        from .game import GlieseHeist, LootDB
 
-        star_db = StarDB(cfg.data_dir / "starcatch.db")
-        game = Starcatch(hub, cfg.game, star_db)
+        assert cfg.game.content is not None  # config.load reads heist.toml when the game is on
+        loot_db = LootDB(cfg.data_dir / "heist.db")
+        game = GlieseHeist(hub, cfg.game, loot_db, cfg.game.content)
         game_task = asyncio.create_task(_supervise("game", hub, game.run))  # runs until shutdown
     try:
         async with aiohttp.ClientSession() as session:
@@ -144,8 +145,11 @@ async def _serve(
     finally:
         if recorder is not None:
             recorder.close()
-        if star_db is not None:
-            star_db.close()
+        if game_task is not None:
+            game_task.cancel()
+            await asyncio.gather(game_task, return_exceptions=True)  # let the game cancel its event first
+        if loot_db is not None:
+            loot_db.close()
 
 
 async def _replay(hub: Hub, session: aiohttp.ClientSession, path: Path, speed: float) -> None:
@@ -215,6 +219,11 @@ def _check(cfg: config_mod.Config) -> int:
             print(f'{label}: "{path}" {"OK" if exists else "MISSING"}')
     else:
         print("YouTube: disabled")
+    content = cfg.game.content
+    if content is not None:  # config.load already checked heist.toml line by line
+        print(f"Gliese Heist: on, {len(content.targets)} targets, {len(content.loot)} loot items")
+    else:
+        print("Gliese Heist: off")
     return 0 if ok else 1
 
 

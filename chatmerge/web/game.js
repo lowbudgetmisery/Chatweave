@@ -1,6 +1,7 @@
 "use strict";
-// Starcatch browser source (/game). Shows the current star, a timer, who caught it, and
-// !stars toasts. Everything comes from the app over the same websocket as the chat overlay.
+// Gliese Heist browser source (/game). Shows the current heist or steal race: sign-up timer,
+// crew, the heist playing out, the result and the loot. Plus !stash toasts. Everything comes
+// from the app over the same websocket as the chat overlay; nothing here talks to chat.
 // URL options: ?scale=1.0  ?bg=1 (preview background) / ?bg=0 (transparent)
 (() => {
   const params = new URLSearchParams(location.search);
@@ -14,9 +15,9 @@
   const toasts = document.getElementById("toasts");
   const hint = document.getElementById("hint");
   const SVG_NS = "http://www.w3.org/2000/svg";
-  const LEAD = { common: "A star drifted into view", rare: "Something rare is drifting by", legendary: "A legendary star appeared!" };
-  let shownId = null;
-  let card = null;
+  const HEAT = { 1: "Easy job", 2: "Risky job", 3: "Impossible job" };
+  const STAMP = { success: "Got away", fail: "Busted", solo: "Solo job", won: "Swiped", nobody: "Too slow" };
+  let card = null; // { id, phase, root, body, ... }
 
   function el(tag, cls, text) {
     const node = document.createElement(tag);
@@ -30,153 +31,192 @@
     return node;
   }
 
-  // Same species key -> same constellation every time (seeded random).
-  function seeded(key) {
-    let h = 2166136261;
-    for (const ch of key) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
-    return () => {
-      h = (h + 0x6d2b79f5) | 0;
-      let t = Math.imul(h ^ (h >>> 15), 1 | h);
-      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
-  }
-
-  function constellation(key, rarity) {
-    const rand = seeded(key);
-    const W = 400, H = 170, pad = 26;
-    const count = { common: 6, rare: 8, legendary: 10 }[rarity] || 6;
-    const pts = [];
-    for (let tries = 0; pts.length < count && tries < 500; tries++) {
-      const p = { x: pad + rand() * (W - 2 * pad), y: pad + rand() * (H - 2 * pad) };
-      if (pts.every((q) => Math.hypot(p.x - q.x, p.y - q.y) > 46)) pts.push(p);
-    }
-    // Minimum spanning tree (Prim): every star joined, no long lines crossing the figure.
-    const inTree = [0];
-    const edges = [];
-    while (inTree.length < pts.length) {
-      let best = null;
-      for (const i of inTree) for (let j = 0; j < pts.length; j++) {
-        if (inTree.includes(j)) continue;
-        const d = Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y);
-        if (!best || d < best.d) best = { i, j, d };
-      }
-      edges.push(best);
-      inTree.push(best.j);
-    }
-
-    const root = svg("svg", { class: "sky", viewBox: `0 0 ${W} ${H}`, "aria-hidden": "true" });
-    const id = `g${key.replace(/[^a-z0-9]/gi, "")}`;
+  // Gliese 667C: a red dwarf with a planet on its orbit (Lumi's home star).
+  function emblem() {
+    const root = svg("svg", { class: "emblem", viewBox: "0 0 64 64", "aria-hidden": "true" });
     const defs = svg("defs", {});
-    const glow = svg("filter", { id, x: "-150%", y: "-150%", width: "400%", height: "400%" });
-    glow.append(svg("feGaussianBlur", { stdDeviation: 4, result: "b" }));
-    const merge = svg("feMerge", {});
-    merge.append(svg("feMergeNode", { in: "b" }), svg("feMergeNode", { in: "SourceGraphic" }));
-    glow.append(merge);
-    defs.append(glow);
-    root.append(defs);
-    edges.forEach((e, n) => {
-      const a = pts[e.i], b = pts[e.j];
-      const len = Math.ceil(Math.hypot(a.x - b.x, a.y - b.y));
-      const line = svg("line", { class: "link", x1: a.x, y1: a.y, x2: b.x, y2: b.y });
-      line.style.setProperty("--len", String(len));
-      line.style.setProperty("--delay", `${200 + n * 140}ms`);
-      root.append(line);
-    });
-    // First point is the focal star: biggest, with the strongest halo.
-    pts.forEach((p, n) => {
-      const r = n === 0 ? 5.2 : 2 + rand() * 1.8;
-      root.append(svg("circle", { class: n === 0 ? "halo focal" : "halo", cx: p.x, cy: p.y, r: r * (n === 0 ? 2.6 : 2.0), filter: `url(#${id})` }));
-      const star = svg("circle", { class: "star", cx: p.x, cy: p.y, r });
-      star.style.setProperty("--tw", `${Math.round(rand() * 3000)}ms`);
-      root.append(star);
-    });
+    const grad = svg("radialGradient", { id: "dwarf", cx: "38%", cy: "35%", r: "65%" });
+    grad.append(svg("stop", { offset: "0%", "stop-color": "#fff2d6" }), svg("stop", { offset: "35%", "stop-color": "#ffb36b" }),
+      svg("stop", { offset: "80%", "stop-color": "#e8483a" }), svg("stop", { offset: "100%", "stop-color": "#8f1f2c" }));
+    const glow = svg("radialGradient", { id: "dwarfGlow", cx: "50%", cy: "50%", r: "50%" });
+    glow.append(svg("stop", { offset: "40%", "stop-color": "rgba(255,110,80,0.55)" }), svg("stop", { offset: "100%", "stop-color": "rgba(255,110,80,0)" }));
+    defs.append(grad, glow);
+    root.append(defs, svg("circle", { cx: 32, cy: 32, r: 30, fill: "url(#dwarfGlow)", class: "corona" }));
+    root.append(svg("ellipse", { cx: 32, cy: 32, rx: 27, ry: 9, class: "orbit", transform: "rotate(-18 32 32)" }));
+    root.append(svg("circle", { cx: 32, cy: 32, r: 12, fill: "url(#dwarf)" }));
+    // the planet rides the orbit ellipse (same shape and tilt as the drawn orbit)
+    const tilt = svg("g", { transform: "rotate(-18 32 32)" });
+    const planet = svg("circle", { class: "planet", r: 2.6 });
+    const move = svg("animateMotion", { dur: "9s", repeatCount: "indefinite", path: "M59,32 a27,9 0 1,1 -54,0 a27,9 0 1,1 54,0" });
+    planet.append(move);
+    tilt.append(planet);
+    root.append(tilt);
     return root;
   }
 
-  function drawCatchers(box, spawn) {
+  function cmdChip(text) { return el("span", "cmd", text); }
+
+  function names(box, list, total, label) {
     box.replaceChildren();
-    const names = spawn.catchers.map((c) => c.name);
-    if (!names.length) {
-      if (spawn.misses) box.append(el("span", "dim", `${spawn.misses} ${spawn.misses === 1 ? "throw" : "throws"} missed...`));
-      return;
+    if (!total) return;
+    box.append(el("span", "count", `${total} ${label}`));
+    const shown = list.map((m) => m.name);
+    if (shown.length) {
+      box.append(el("span", "dim", " · "));
+      shown.forEach((n, i) => {
+        box.append(el("b", "", n));
+        if (i < shown.length - 1) box.append(document.createTextNode(", "));
+      });
+      if (total > shown.length) box.append(el("span", "dim", ` +${total - shown.length}`));
     }
-    box.append(el("span", "dim", "Caught by "));
-    const first = names.slice(0, 4);
-    first.forEach((n, i) => {
-      box.append(el("b", "", n));
-      if (i < first.length - 1) box.append(document.createTextNode(", "));
-    });
-    if (names.length > first.length) box.append(el("span", "dim", ` +${names.length - first.length} more`));
   }
 
-  function build(game) {
-    const spawn = game.spawn;
-    const sp = spawn.species;
-    const root = el("article", `card r-${sp.rarity}`);
-    root.style.setProperty("--species", sp.color);
-    const top = el("div", "top");
-    top.append(el("span", "rarity", sp.rarity), el("span", "lead", LEAD[sp.rarity] || LEAD.common));
-    const prompt = el("div", "prompt");
-    prompt.append(document.createTextNode("Type"), el("span", "cmd", game.command), document.createTextNode("to catch it"));
+  function timerBar(ev) {
     const timer = el("div", "timer");
     const bar = el("i");
     timer.append(bar);
-    const catchers = el("div", "catchers");
-    root.append(top, constellation(sp.key, sp.rarity), el("h1", "name", sp.name), prompt, timer, catchers);
-    // Call after the card is on the page. The timer runs from what's left now, so late page
-    // loads and OBS refreshes stay in sync.
-    function startTimer() {
-      const left = Math.max(0, spawn.ends_at * 1000 - Date.now());
-      const windowMs = Math.max(1, (game.window_s || 60) * 1000);
+    // Runs from what's left now, so late page loads and OBS refreshes stay in sync.
+    const start = () => {
+      const left = Math.max(0, ev.ends_at * 1000 - Date.now());
+      const windowMs = Math.max(1, (ev.window_s || 60) * 1000);
       bar.style.transform = `scaleX(${Math.min(1, left / windowMs)})`;
-      void bar.offsetWidth; // commit the starting width before animating (else it jumps to empty)
+      void bar.offsetWidth; // commit the starting width before animating
       bar.style.transition = `transform ${left}ms linear`;
       bar.style.transform = "scaleX(0)";
+    };
+    return { timer, start };
+  }
+
+  function lootLine(entry) {
+    const row = el("li", `loot r-${entry.loot.rarity}`);
+    row.append(el("b", "", entry.name), el("span", "item", entry.loot.name), el("span", "rarity", entry.loot.rarity));
+    return row;
+  }
+
+  // ---- card per event -------------------------------------------------------------
+  function newCard(game, ev) {
+    const root = el("article", `card k-${ev.kind}`);
+    const head = el("header", "head");
+    const titles = el("div", "titles");
+    titles.append(el("span", "tag", ev.kind === "heist" ? "Heist" : "Quick steal"), el("span", "from", "from Gliese 667C"));
+    head.append(titles, emblem());
+    const body = el("div", "body");
+    root.append(head, body);
+    stage.replaceChildren(root);
+    return { id: ev.id, phase: null, root, body, game };
+  }
+
+  function drawJoin(c, ev, game) {
+    const b = c.body;
+    b.replaceChildren();
+    if (ev.kind === "heist") {
+      const label = el("div", "label");
+      label.append(el("span", "", "Target"), el("span", `heat h${ev.target.difficulty}`, HEAT[ev.target.difficulty] || ""));
+      b.append(label, el("h1", "name", ev.target.name), el("p", "line", ev.text));
+      const prompt = el("div", "prompt");
+      prompt.append(document.createTextNode("Type"), cmdChip(game.commands.heist), document.createTextNode("to join the crew"));
+      const t = timerBar(ev);
+      const crewRow = el("div", "crew");
+      const odds = el("div", "odds");
+      b.append(prompt, t.timer, crewRow, odds);
+      c.crewRow = crewRow;
+      c.odds = odds;
+      requestAnimationFrame(t.start);
+    } else {
+      const label = el("div", "label");
+      label.append(el("span", "", "Unguarded"), el("span", `rarity-tag r-${ev.prize.rarity}`, ev.prize.rarity));
+      b.append(label, el("h1", "name", ev.prize.name), el("p", "line", ev.text));
+      const prompt = el("div", "prompt");
+      prompt.append(document.createTextNode("First to type"), cmdChip(game.commands.steal), document.createTextNode("keeps it"));
+      const t = timerBar(ev);
+      b.append(prompt, t.timer);
+      requestAnimationFrame(t.start);
     }
-    return { root, catchers, prompt, timer, startTimer };
+  }
+
+  function updateJoin(c, ev, game) {
+    if (ev.kind !== "heist") return;
+    names(c.crewRow, ev.crew_recent, ev.crew_count, game.crew.name);
+    c.odds.replaceChildren();
+    if (ev.crew_count) {
+      c.odds.append(el("span", "dim", "Odds "), el("b", "", `${Math.round(ev.chance * 100)}%`),
+        el("span", "dim", ` · more ${game.crew.name}, better odds`));
+    } else {
+      c.odds.append(el("span", "dim", `No ${game.crew.name} yet. Lumi might go alone...`));
+    }
+  }
+
+  function drawRunning(c, ev, game) {
+    const b = c.body;
+    b.replaceChildren();
+    b.append(el("h1", "name small", ev.target.name));
+    const list = el("ol", "beats");
+    ev.beats.forEach((text, i) => {
+      const li = el("li", "", text);
+      li.style.animationDelay = `${i * (ev.beat_s || 3.5)}s`;
+      list.append(li);
+    });
+    const sneak = el("div", "sneak");
+    for (let i = 0; i < 3; i++) sneak.append(el("i"));
+    const crewRow = el("div", "crew");
+    names(crewRow, ev.crew_recent, ev.crew_count, game.crew.name);
+    b.append(list, sneak, crewRow);
+  }
+
+  function drawDone(c, ev, game) {
+    const b = c.body;
+    b.replaceChildren();
+    c.root.classList.add(`o-${ev.outcome}`);
+    const stamp = el("div", "stamp", STAMP[ev.outcome] || ev.outcome);
+    const title = ev.kind === "heist" ? ev.target.name : ev.prize.name;
+    b.append(stamp, el("h1", "name small", title), el("p", "result", ev.result));
+    if (ev.outcome === "fail") {
+      const crewRow = el("div", "crew");
+      names(crewRow, ev.crew_recent, ev.crew_count, `${game.crew.name} caught`);
+      b.append(crewRow);
+    }
+    if (ev.payouts.length) {
+      const list = el("ul", "payouts");
+      ev.payouts.forEach((p) => list.append(lootLine(p)));
+      b.append(list);
+      const more = ev.payout_count - ev.payouts.length;
+      if (more > 0) b.append(el("div", "more", `+${more} more ${more === 1 ? game.crew.one : game.crew.name} got loot`));
+    }
+  }
+
+  function leave() {
+    if (!card) return;
+    const old = card.root;
+    old.classList.add("leaving");
+    old.addEventListener("animationend", () => old.remove(), { once: true });
+    setTimeout(() => old.remove(), 1000);
+    card = null;
   }
 
   function show(game) {
-    hint.classList.toggle("show", !game || !game.enabled);
     if (!game || !game.enabled) {
-      hint.textContent = "Starcatch is off. Turn it on in config.toml under [game], then restart.";
-      stage.replaceChildren();
-      shownId = null;
+      leave();
+      hint.classList.add("show");
+      hint.textContent = "Gliese Heist is off. Turn it on in config.toml under [game], then restart.";
       return;
     }
-    const spawn = game.spawn;
-    if (!spawn) {
-      if (card) {
-        const old = card.root;
-        old.classList.add("leaving");
-        old.addEventListener("animationend", () => old.remove(), { once: true });
-        setTimeout(() => old.remove(), 1000);
-      }
-      card = null;
-      shownId = null;
+    const ev = game.event;
+    if (!ev) {
+      leave();
       hint.classList.add("show");
-      hint.textContent = `Waiting for the next star (or use "Spawn a star" in the dock)`;
+      hint.textContent = "Waiting for the next job (or use Start heist / Quick steal in the dock)";
       return;
     }
     hint.classList.remove("show");
-    if (spawn.id !== shownId) {
-      stage.replaceChildren();
-      card = build(game);
-      stage.append(card.root);
-      card.startTimer();
-      shownId = spawn.id;
+    if (!card || card.id !== ev.id) card = newCard(game, ev);
+    if (card.phase !== ev.phase) {
+      card.phase = ev.phase;
+      card.root.dataset.phase = ev.phase;
+      if (ev.phase === "join") drawJoin(card, ev, game);
+      else if (ev.phase === "running") drawRunning(card, ev, game);
+      else drawDone(card, ev, game);
     }
-    drawCatchers(card.catchers, spawn);
-    if (spawn.over && !card.root.classList.contains("over")) {
-      card.root.classList.add("over");
-      card.prompt.remove();
-      card.timer.remove();
-      const n = spawn.catchers.length;
-      const text = n ? `${n} ${n === 1 ? "viewer" : "viewers"} caught the ${spawn.species.name}!`
-        : `The ${spawn.species.name} slipped away...`;
-      card.root.insertBefore(el("div", "result", text), card.catchers);
-    }
+    if (ev.phase === "join") updateJoin(card, ev, game);
   }
 
   function toast(text) {
@@ -187,8 +227,7 @@
   }
 
   function handle(msg) {
-    if (msg.op === "hello" || msg.op === "resync") show(msg.game);
-    else if (msg.op === "game") show(msg.game);
+    if (msg.op === "hello" || msg.op === "resync" || msg.op === "game") show(msg.game);
     else if (msg.op === "game_toast") toast(msg.text);
   }
 

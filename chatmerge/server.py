@@ -81,7 +81,7 @@ def build_app(hub: Hub, emotes_dir: Path | None = None, port: int = 8787) -> web
     async def game_page(_: web.Request) -> web.FileResponse:
         return web.FileResponse(WEB_DIR / "game.html", headers={"Cache-Control": "no-store"})
 
-    app.router.add_get("/game", game_page)  # Starcatch browser source
+    app.router.add_get("/game", game_page)  # Gliese Heist browser source
     app.router.add_get("/health", health)
     app.router.add_get("/ws", ws_handler)
     app.router.add_static("/static/", WEB_DIR, show_index=False)

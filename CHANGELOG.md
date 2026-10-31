@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.9.0
+
+- New chat game, **Gliese Heist**, replacing Starcatch. Built around Lumi's space thief lore: heists her Gumis join with `!heist` (more crew, better odds; loot for everyone on success), quick `!steal` races, and `!stash` ranks from Gumi Recruit to Lumi's Favorite Gumi. Starts at random times or from the dock (**Start heist**, **Quick steal**). Still overlay-only: nothing is posted to chat.
+- All the game's text lives in `heist.toml` (targets, loot, ranks, lines), checked line by line on start. `teasing = false` leaves out the teasing fail lines.
+- `config.toml` `[game]` has new settings (`heist_command`, `steal_command`, `stash_command`, `event_min_minutes`, `event_max_minutes`, `heist_join_seconds`, `steal_seconds`, `teasing`, `content_file`). The old Starcatch settings are ignored. An old `data\starcatch.db` is left alone and not used.
+- Shared Chat partner viewers can't play, and a subs-only overlay makes the game subs-only too.
+
 ## 1.8.2
 
 - Fixed: Setup and the app build picked the newest installed Python, which can be too new for the pinned packages (found on GitHub's build machine with Python 3.15). They now prefer 3.12, then 3.13, 3.11, 3.14.

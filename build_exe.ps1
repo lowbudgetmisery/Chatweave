@@ -56,12 +56,14 @@ try {
     Invoke-Checked "PyInstaller" { & "$Py" -m PyInstaller --noconfirm --clean --log-level WARN --distpath "$Dist" --workpath (Join-Path $Root "build") "packaging\chatmerge.spec" }
 
     Copy-Item -LiteralPath (Join-Path $Root "config.toml") -Destination $App -Force
+    Copy-Item -LiteralPath (Join-Path $Root "heist.toml") -Destination $App -Force
     Copy-Item -LiteralPath (Join-Path $Root "README.md") -Destination $App -Force
     Copy-Item -LiteralPath (Join-Path $Root "preview.png") -Destination $App -Force
     New-Item -ItemType Directory -Path (Join-Path $App "emotes") -Force | Out-Null
     Copy-Item -LiteralPath (Join-Path $Root "emotes\README.txt") -Destination (Join-Path $App "emotes") -Force
     Get-ChildItem -LiteralPath (Join-Path $Root "packaging\launchers") -Filter "*.bat" | Copy-Item -Destination $App -Force
 
+    if (-not (Test-Path -LiteralPath (Join-Path $App "heist.toml"))) { throw "heist.toml is missing from `"$App`"" }
     if (Test-Path -LiteralPath (Join-Path $App "secrets")) { throw "A secrets folder ended up in `"$App`". Not zipping." }
     $reported = (& (Join-Path $App "chatmerge.exe") --version).Trim()
     if ($LASTEXITCODE -ne 0 -or $reported -ne "chatmerge $version") { throw "Built app reports '$reported', expected 'chatmerge $version'" }

@@ -37,11 +37,11 @@ SCRIPT: list[dict] = [
      "text": "karaoke requests open after this song!", "roles": ["mod"]},
     {"platform": "twitch", "author": "glimmerfox", "kind": "milestone",
      "headline": "glimmerfox watched 25 consecutive streams and sparked a watch streak!", "text": "25 in a row!"},
-    # Hidden from chat by default (!commands); they play Starcatch when [game] is on.
-    {"platform": "twitch", "author": "Kaneko4", "text": "!catch"},
-    {"platform": "youtube", "author": "@Lemons2", "text": "!catch"},
-    {"platform": "twitch", "author": "Raccomi3", "text": "!catch"},
-    {"platform": "twitch", "author": "Lumi1", "text": "!stars"},
+    # Hidden from chat by default (!commands); they play Gliese Heist when [game] is on.
+    {"platform": "twitch", "author": "Kaneko4", "text": "!heist"},
+    {"platform": "youtube", "author": "@Lemons2", "text": "!heist"},
+    {"platform": "twitch", "author": "Raccomi3", "text": "!steal"},
+    {"platform": "twitch", "author": "Lumi1", "text": "!stash"},
 ]
 
 

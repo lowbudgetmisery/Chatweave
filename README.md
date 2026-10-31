@@ -1,6 +1,6 @@
 # Merged Chat for OBS (Twitch + YouTube)
 
-*Version 1.8.2. The black window from `Start Chat.bat` prints the version on its first line.*
+*Version 1.9.0. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
@@ -25,7 +25,7 @@ Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). *
 - Hides chat bots (Nightbot and friends) and `!commands` like `!catch` or `!discord`, so the overlay stays readable
 - **Sub-only overlay** at the flip of a setting: on stream, only subs, YouTube members, VIPs and mods show. Your real chat stays open.
 - Your own cleanup tools in the dock: **Hide** a line, **Hide user**, **Clear overlay**, a blocked-words list, and a **Settings** panel for all of it. They only change what viewers see on the overlay.
-- Optional chat game, **Starcatch** (off unless you turn it on): a star drifts onto the screen and viewers on both platforms type `!catch`
+- Optional chat game, **Gliese Heist** (off unless you turn it on): Lumi, the universe's greatest thief, plans heists and her Gumis on both platforms join with `!heist`, or race to `!steal` loot
 - Read-only: it can't post, delete or ban anything on Twitch or YouTube. Twitch needs no login at all, and YouTube only gets read-only access.
 - Runs on your PC only. Nothing is uploaded anywhere.
 
@@ -112,7 +112,7 @@ When the window says `Saved YouTube token`, you're done.
    - A green **FIRST MESSAGE** tag marks someone chatting in your Twitch channel for the first time. It only shows in your dock, like on Twitch where only mods see it.
    - Gold chips at the top show when your real chat is in a special mode: Twitch sub-only, emote-only, followers-only, slow or unique-chat, and YouTube members-only. YouTube only reports changes, so a members-only mode switched on before the app started won't show until it changes.
 
-**Starcatch game (optional, only if you turned it on):** Sources, **+**, **Browser**, URL `http://127.0.0.1:8787/game`, Width `480`, Height `420`. See **Starcatch** below.
+**Gliese Heist game (optional, only if you turned it on):** Sources, **+**, **Browser**, URL `http://127.0.0.1:8787/game`, Width `500`, Height `440`. See **Gliese Heist** below.
 
 **To position the overlays without being live:** double-click **`Start Demo.bat`** and it plays fake messages (including fake bits, Super Chats and raids) into both windows on a loop. Close that window when you're done.
 
@@ -220,17 +220,32 @@ Good to know:
 
 ---
 
-## Starcatch (optional chat game)
+## Gliese Heist (optional chat game)
 
-Off by default. To try it: in `config.toml` set `enabled = true` under `[game]`, restart, and add the `/game` browser source (step 5).
+Lumi, the star Gliese 667C and the universe's greatest thief, plans heists on Earth and her Gumis join the crew. Off by default. To try it: in `config.toml` set `enabled = true` under `[game]`, restart, and add the `/game` browser source (step 5).
 
-- Every 7 to 15 minutes (change it under `[game]`) a star creature drifts onto the game source with a 60-second timer.
-- Viewers type **`!catch`** in Twitch or YouTube chat. One throw per person per star. Common stars are easy, rare ones harder, legendary ones (about 1 in 20) much harder.
-- Everyone who catches it is shown on the card. Catches are saved in `data\starcatch.db`, so they carry over between streams.
-- **`!stars`** shows that viewer's totals on the game source ("12 caught, 5 of 11 kinds").
-- **Spawn a star** in the dock sends one out right now.
-- It never posts in chat, so there's no bot account to set up and it uses none of the YouTube allowance. `!catch` and `!stars` lines are hidden from the chat overlay (if `hide_commands` is on). Hidden users can't play.
-- The 11 species and their constellation art are original to this app.
+Every 7 to 15 minutes (change it under `[game]`) one of two things happens. Lumi can also start either one from the dock.
+
+**Heist** (dock: **Start heist**)
+1. A target appears with a 60-second sign-up timer. Targets are easy, risky or impossible jobs.
+2. Viewers type **`!heist`** in Twitch or YouTube chat to join the crew. The card shows the crew and the odds: every extra Gumi adds 3%, up to 92%. It's never a sure thing.
+3. The heist plays out on the card in a few short lines.
+4. **Got away:** every crew member gets a piece of loot (common, rare or legendary; harder jobs drop better loot). **Busted:** nobody gets anything. Nobody joined: Lumi does it alone and keeps it all.
+
+**Quick steal** (dock: **Quick steal**)
+- An unguarded item appears for 30 seconds. The first viewer to type **`!steal`** keeps it.
+
+**Stash**
+- **`!stash`** shows that viewer's haul and rank on the game source, for example "Kaneko4 (Cat Burglar): 14 items stolen, 3 rare". Ranks go from Gumi Recruit up to Lumi's Favorite Gumi.
+- Loot is saved in `data\heist.db`, so stashes carry over between streams.
+
+**Make it hers:** every target, loot item, rank and line of text is in **`heist.toml`** next to `config.toml`. Edit it in Notepad and restart. If something's wrong in it, the app says exactly which line. Fail lines in her chat's teasing style ("The Gumis tripped the alarm. Idiots.") can be turned off with `teasing = false` under `[game]`.
+
+Good to know:
+- It never posts in chat, so there's no bot account to set up and it uses none of the YouTube allowance.
+- `!heist`, `!steal` and `!stash` lines are hidden from the chat overlay (if `hide_commands` is on). The commands can be renamed under `[game]`.
+- Hidden users, bots and Shared Chat partner viewers can't play. When the overlay is set to subs only, so is the game.
+- All the art is drawn by the app (the red dwarf star is Gliese 667C). It never uses Lumi's model or art.
 
 ---
 

@@ -7,7 +7,7 @@ import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 
-from .game import GameConfig
+from .game import ContentError, GameConfig, load_content
 from .settings import OverlaySettings, SettingsError, apply_changes
 
 
@@ -132,17 +132,29 @@ def _game_config(path: Path, raw: dict) -> GameConfig:
     try:
         game = GameConfig(
             enabled=_strict(raw, "enabled", bool, False),
-            catch_command=_strict(raw, "catch_command", str, "!catch").strip(),
-            dex_command=_strict(raw, "dex_command", str, "!stars").strip(),
-            spawn_min_s=float(_strict(raw, "spawn_min_minutes", (int, float), 7)) * 60,
-            spawn_max_s=float(_strict(raw, "spawn_max_minutes", (int, float), 15)) * 60,
-            window_s=float(_strict(raw, "catch_window_seconds", (int, float), 60)),
+            heist_command=_strict(raw, "heist_command", str, "!heist").strip(),
+            steal_command=_strict(raw, "steal_command", str, "!steal").strip(),
+            stash_command=_strict(raw, "stash_command", str, "!stash").strip(),
+            event_min_s=float(_strict(raw, "event_min_minutes", (int, float), 7)) * 60,
+            event_max_s=float(_strict(raw, "event_max_minutes", (int, float), 15)) * 60,
+            join_s=float(_strict(raw, "heist_join_seconds", (int, float), 60)),
+            steal_s=float(_strict(raw, "steal_seconds", (int, float), 30)),
+            teasing=_strict(raw, "teasing", bool, True),
         )
+        content_file = _strict(raw, "content_file", str, "heist.toml").strip()
     except TypeError as exc:
         raise ConfigError(f'in "{path}": {exc}') from exc
     problems = game.validate()
     if problems:
         raise ConfigError(f'in "{path}": ' + "; ".join(problems))
+    if game.enabled:
+        content_path = Path(os.path.expandvars(content_file)).expanduser()
+        if not content_path.is_absolute():
+            content_path = path.parent / content_path
+        try:
+            game.content = load_content(content_path)
+        except ContentError as exc:
+            raise ConfigError(f"Gliese Heist text file problem {exc}") from exc
     return game
 
 

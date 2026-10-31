@@ -404,6 +404,16 @@ body.dock .msg.first .bubble {
   box-shadow: inset 3px 0 0 #7fe3b0, 0 6px 18px rgba(0, 0, 8, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
+/* ---------- Twitch announcements and watch streaks (not support events) ---------- */
+.notice .bubble { border-left: 3px solid var(--accent, var(--chev)); }
+.notice .evline { color: var(--accent, var(--chev)); }
+.a-blue { --accent: #6f9bff; }
+.a-green { --accent: #4fd99a; }
+.a-orange { --accent: #ffad5c; }
+.a-purple { --accent: #b48cff; }
+.a-primary { --accent: var(--chev); }
+.k-milestone { --accent: #ffd98a; }
+
 /* ---------- dock Settings panel ---------- */
 .panel {
   position: fixed;

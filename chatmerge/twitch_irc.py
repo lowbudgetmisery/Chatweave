@@ -31,7 +31,10 @@ NOTICE_KINDS: dict[str, Kind] = {
     "anongiftpaidupgrade": "sub",
     "primepaidupgrade": "sub",
     "raid": "raid",
+    "announcement": "announcement",  # seen live Oct 2026; not in Twitch's documented msg-id list
+    "viewermilestone": "milestone",
 }
+ANNOUNCEMENT_COLORS = frozenset({"blue", "green", "orange", "purple", "primary"})
 
 
 @dataclass(slots=True)
@@ -225,6 +228,10 @@ def item_from_usernotice(msg: IrcMessage) -> ChatItem | None:
         headline=tags.get("system-msg") or None,
         amount=tags.get("msg-param-viewerCount") or tags.get("msg-param-mass-gift-count") or None,
     )
+    if kind == "announcement":
+        item.headline = "Announcement"  # Twitch sends an empty system-msg for these
+        color = tags.get("msg-param-color", "").lower()
+        item.accent = color if color in ANNOUNCEMENT_COLORS else "primary"
     apply_twitch_extras(item, tags)
     item.reply_to = None  # notices are never replies
     item.first_time = False

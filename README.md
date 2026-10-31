@@ -1,6 +1,6 @@
 # Merged Chat for OBS (Twitch + YouTube)
 
-*Version 1.8.0. The black window from `Start Chat.bat` prints the version on its first line.*
+*Version 1.8.1. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
@@ -239,6 +239,8 @@ Off by default. To try it: in `config.toml` set `enabled = true` under `[game]`,
 | Twitch | New subs, resubs (with their message), gifted subs (one line per gift bomb, not one per recipient), bits, raids |
 | YouTube | Super Chats, Super Stickers, new members, member milestones, gifted memberships, gifts |
 
+Twitch **announcements** (the colored `/announce` boxes, from mods or bots) and **watch streaks** ("watched 50 consecutive streams") show in chat with a colored stripe, but they aren't support events, so they stay out of the events window. Announcements from bots follow the bot settings: Streamlabs timer announcements disappear when **Hide tip bots** is on.
+
 Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits look the same at any amount; the number shows in the gold pill.
 
 **TTS isn't its own event.** Twitch and YouTube don't send "this was read by TTS" to chat. What you'll see depends on how your TTS works:
@@ -257,7 +259,9 @@ Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits l
 | "YouTube login missing" | Do steps 3 and 4. Or turn YouTube off in `config.toml` to run Twitch only. |
 | YouTube chat stopped after about a week | The login expired. Run `YouTube Login.bat` again (see the 7-day note in step 4). |
 | YouTube chat doesn't appear | Check the status line in the dock. It needs your stream to be live on the channel you logged in with, and live chat turned on. |
+| Overlay is blank in OBS, but the dock works in a normal browser | The OBS source loaded while the app wasn't running, and OBS doesn't retry on its own. Right-click the source, **Refresh**. To avoid it: start `Start Chat.bat` before OBS, or tick **Refresh browser when scene becomes active** in the source's properties. |
 | Overlay is blank in OBS | Make sure `Start Chat.bat` is running, then right-click the browser source and click **Refresh**. |
+| Text in OBS looks tiny or blurry | The source was resized in OBS. Right-click it, **Transform**, **Reset Transform**, and change the size with `?scale=` in the URL instead. |
 | "Address already in use" | Another app is using port 8787. Change `port` in `config.toml` and use the new number in the OBS URLs. |
 | Something odd happened mid-stream | Look in the **`logs`** folder: `chatmerge.log` has what happened, with times. Send it along when asking for help (it contains chat names, so share it privately). |
 | "Could not read settings.json" at startup | The dock's saved settings file got damaged. Rename `settings.json` (to keep it) and start again; you'll be back on `config.toml` settings. |

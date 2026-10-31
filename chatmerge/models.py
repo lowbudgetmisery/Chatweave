@@ -15,6 +15,8 @@ Kind = Literal[
     "superchat",
     "supersticker",
     "member",
+    "announcement",  # Twitch /announce (mods and bots): highlighted chat line, not a support event
+    "milestone",     # Twitch watch streak: highlighted chat line, not a support event
 ]
 
 # Kinds that render as highlighted event lines in the overlay.
@@ -53,6 +55,7 @@ class ChatItem:
     first_time: bool = False                # first message ever in this channel
     shared: bool = False                    # came from a partner channel during Twitch Shared Chat
     source_id: str | None = None            # Shared Chat: the message id in the partner channel
+    accent: str | None = None               # announcement color: blue, green, orange, purple or primary
 
     def to_json(self) -> dict[str, Any]:
         data = asdict(self)

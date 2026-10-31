@@ -290,6 +290,18 @@ class Hub:
             self._clients.add(ws)
         await ws.send_str(json.dumps(self._snapshot("hello")))
 
+    async def close_clients(self) -> None:
+        """On shutdown: close every page connection first, so stopping the app (Ctrl+C) ends
+        them cleanly instead of cancelling them mid-read."""
+        async with self._lock:
+            clients = list(self._clients)
+            self._clients.clear()
+        for ws in clients:
+            try:
+                await ws.close(code=1001, message=b"chatmerge stopping")
+            except (ConnectionResetError, RuntimeError) as exc:
+                log.debug("page connection already gone: %s", exc)
+
     async def detach(self, ws: web.WebSocketResponse) -> None:
         async with self._lock:
             self._clients.discard(ws)

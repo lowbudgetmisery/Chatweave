@@ -139,6 +139,7 @@ async def _serve(
                     task.cancel()
                 if game_task is not None:
                     game_task.cancel()
+                await hub.close_clients()
                 await runner.cleanup()
     finally:
         if recorder is not None:

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.8.1
+
+From a 39-minute live recording (Twitch + YouTube, 3,927 lines, replayed with zero errors):
+- Added: Twitch announcements (`/announce`) show with their color; watch streaks show too. Both stay out of the events window. Bot filters apply to them.
+- Added: a permanent test that replays real message shapes from that recording, with every name, id and text replaced.
+- Changed: stopping with Ctrl+C closes the OBS and dock connections first, to avoid a burst of error text on Windows.
+- Confirmed live: replies, first-time chatters, Super Chats in other currencies, YouTube gifts and gifted memberships, member milestones, and duplicate YouTube messages across reconnects being shown once.
+
 ## 1.8.0
 
 Added

@@ -90,7 +90,7 @@ class TwitchTests(unittest.TestCase):
         self.assertEqual(item.fragments, [])
 
     def test_unknown_notice_ignored(self) -> None:
-        line = "@msg-id=announcement;display-name=X;id=z :tmi.twitch.tv USERNOTICE #c :hello"
+        line = "@msg-id=unraid;display-name=X;id=z :tmi.twitch.tv USERNOTICE #c :hello"
         self.assertIsNone(item_from_usernotice(parse_line(line)))
 
     def test_badges(self) -> None:

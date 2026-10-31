@@ -25,7 +25,9 @@
   const feed = document.getElementById("feed");
   const statusEl = document.getElementById("status");
   const IMG_OK = ["https://static-cdn.jtvnw.net/", "https://cdn.7tv.app/", "/static/", "/custom/"];
-  const ICONS = { sub: "✧", gift: "❖", bits: "◆", raid: "☄", superchat: "✦", supersticker: "✦", member: "✧" };
+  const ICONS = { sub: "✧", gift: "❖", bits: "◆", raid: "☄", superchat: "✦", supersticker: "✦", member: "✧",
+    announcement: "✺", milestone: "✧" };
+  const NOTICE_KINDS = new Set(["announcement", "milestone"]); // highlighted lines that aren't support events
   const SVG_NS = "http://www.w3.org/2000/svg";
   // Sent by the app in hello/resync: config.toml defaults plus anything saved from the dock.
   let settings = { removal_style: "fade", placeholder_text: "message removed", overlay_audience: "everyone" };
@@ -150,7 +152,9 @@
       !removed && styled ? `event k-${item.kind}` : "", !removed && hot ? "hot" : "",
       !removed && item.mention && !item.event ? "mention" : "", !removed && styled && !hasBody ? "nobody" : "",
       removed ? "redacted" : "", instant ? "instant" : "", item.shared ? "shared" : "",
-      dock && item.first_time && !removed ? "first" : ""].filter(Boolean).join(" "));
+      dock && item.first_time && !removed ? "first" : "",
+      !removed && NOTICE_KINDS.has(item.kind) ? `notice k-${item.kind}` : "",
+      !removed && item.accent ? `a-${item.accent}` : ""].filter(Boolean).join(" "));
     root.dataset.platform = item.platform;
     root.dataset.id = item.id;
     root.dataset.user = item.user_id;
@@ -201,7 +205,7 @@
       if (item.reply_to.text) reply.append(el("span", "reply-text", item.reply_to.text));
       bubble.appendChild(reply);
     }
-    if (item.event && item.headline) {
+    if (item.headline && (item.event || NOTICE_KINDS.has(item.kind))) {
       const ev = el("div", "evline");
       ev.append(el("span", "ico", ICONS[item.kind] || "✦"), el("span", "", item.headline));
       bubble.appendChild(ev);

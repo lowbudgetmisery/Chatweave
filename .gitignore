@@ -12,3 +12,4 @@ chatmerge/_gen/
 build/
 dist/
 *.spec.bak
+.build-venv/

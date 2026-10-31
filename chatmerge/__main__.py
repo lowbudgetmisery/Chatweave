@@ -215,10 +215,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("file", nargs="?", default="", help="replay: the recording to play")
     parser.add_argument("--config", default=str(config_mod.DEFAULT_CONFIG))
     parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("--youtube-url", default="", help="TEST MODE: read this public live stream's chat instead of your own")
+    parser.add_argument("--version", action="version", version=f"chatmerge {__version__}")
+    parser.add_argument("--youtube-url", default="",
+                        help='TEST MODE: read this public live stream\'s chat instead of your own ("ask" = prompt for it)')
     parser.add_argument("--record", action="store_true", help="run: also save raw chat to the recordings folder")
     parser.add_argument("--speed", type=float, default=1.0, help="replay: 2 = twice as fast, 0 = all at once")
     args = parser.parse_args(argv)
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(line_buffering=True)  # banner shows even when output goes to a file
     _setup_logging(args.verbose)
     if sys.platform == "win32":
         # grpc.aio needs a selector loop on Windows; aiohttp works on either.
@@ -243,6 +247,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise config_mod.ConfigError("--youtube-url only works with the run command")
             if not cfg.youtube_enabled:
                 raise config_mod.ConfigError("YouTube is turned off in config.toml ([youtube] enabled = false); turn it on to test YouTube.")
+            if args.youtube_url.strip().lower() == "ask":
+                print("YouTube TEST MODE: reads the chat of any public live stream instead of yours.")
+                print("Open the live stream on YouTube, click Share, copy the link, paste it here.")
+                args.youtube_url = input("YouTube live link: ").strip()
             test_video_id = parse_video_id(args.youtube_url)
             if not test_video_id:
                 raise config_mod.ConfigError(

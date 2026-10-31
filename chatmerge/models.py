@@ -48,6 +48,11 @@ class ChatItem:
     tier: int | None = None
     mention: bool = False  # line @mentions the streamer
     ts: float = field(default_factory=time.time)
+    # Twitch extras (None/False on YouTube)
+    reply_to: dict[str, str] | None = None  # {"name": who is being answered, "text": their message, shortened}
+    first_time: bool = False                # first message ever in this channel
+    shared: bool = False                    # came from a partner channel during Twitch Shared Chat
+    source_id: str | None = None            # Shared Chat: the message id in the partner channel
 
     def to_json(self) -> dict[str, Any]:
         data = asdict(self)

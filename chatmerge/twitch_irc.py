@@ -127,6 +127,56 @@ def roles_from_badges(badges: str) -> list[str]:
     return roles
 
 
+REPLY_PREVIEW_CHARS = 80
+
+
+def shared_from_partner(tags: dict[str, str]) -> bool:
+    """Shared Chat: the line started in another channel's chat (source room differs from this room)."""
+    source, room = tags.get("source-room-id"), tags.get("room-id")
+    return bool(source and room and source != room)
+
+
+def apply_twitch_extras(item: ChatItem, tags: dict[str, str]) -> None:
+    """Reply context, first-time chatter, and Shared Chat origin. All optional tags."""
+    parent = tags.get("reply-parent-display-name") or tags.get("reply-parent-user-login")
+    if parent:
+        body = tags.get("reply-parent-msg-body", "")
+        if len(body) > REPLY_PREVIEW_CHARS:
+            body = body[: REPLY_PREVIEW_CHARS - 1].rstrip() + "\u2026"
+        item.reply_to = {"name": parent, "text": body}
+    # Not in Twitch's documented tag table, but sent today; missing tag just means "not first".
+    item.first_time = tags.get("first-msg") == "1"
+    if shared_from_partner(tags):
+        item.shared = True
+        item.source_id = tags.get("source-id") or None
+
+
+def describe_room_modes(modes: dict[str, str]) -> str:
+    """Restrictive Twitch chat modes that are on, e.g. "sub-only, slow 30s". Empty = normal chat."""
+    on: list[str] = []
+    if modes.get("subs-only") == "1":
+        on.append("sub-only")
+    if modes.get("emote-only") == "1":
+        on.append("emote-only")
+    followers = modes.get("followers-only", "-1")
+    if followers.lstrip("-").isdigit() and int(followers) >= 0:
+        on.append("followers-only" if int(followers) == 0 else f"followers-only ({followers} min)")
+    slow = modes.get("slow", "0")
+    if slow.isdigit() and int(slow) > 0:
+        on.append(f"slow {slow}s")
+    if modes.get("r9k") == "1":
+        on.append("unique-chat")
+    return ", ".join(on)
+
+
+def notice_type(tags: dict[str, str]) -> str:
+    """USERNOTICE type; Shared Chat wraps partner events as sharedchatnotice + source-msg-id."""
+    msg_id = tags.get("msg-id", "")
+    if msg_id == "sharedchatnotice":
+        return tags.get("source-msg-id", "")
+    return msg_id
+
+
 def clearchat_action(tags: dict[str, str]) -> str:
     """Twitch sends ban-duration only for timeouts; a permanent ban has none."""
     return "timeout" if tags.get("ban-duration") else "ban"
@@ -153,16 +203,17 @@ def item_from_privmsg(msg: IrcMessage) -> ChatItem:
         count = int(bits)
         item.headline = f"Cheered {count:,} bit{'s' if count != 1 else ''}"
         item.amount = f"{count:,}"
+    apply_twitch_extras(item, tags)
     return item
 
 
 def item_from_usernotice(msg: IrcMessage) -> ChatItem | None:
     tags = msg.tags
-    kind = NOTICE_KINDS.get(tags.get("msg-id", ""))
+    kind = NOTICE_KINDS.get(notice_type(tags))
     if kind is None:
         return None
     login = tags.get("login", "")
-    return ChatItem(
+    item = ChatItem(
         id=tags.get("id", ""),
         platform="twitch",
         kind=kind,
@@ -174,6 +225,10 @@ def item_from_usernotice(msg: IrcMessage) -> ChatItem | None:
         headline=tags.get("system-msg") or None,
         amount=tags.get("msg-param-viewerCount") or tags.get("msg-param-mass-gift-count") or None,
     )
+    apply_twitch_extras(item, tags)
+    item.reply_to = None  # notices are never replies
+    item.first_time = False
+    return item
 
 
 class TwitchChat:
@@ -191,6 +246,7 @@ class TwitchChat:
         self.seventv = seventv
         self._room_id: str | None = None
         self._mystery_gift_ids: set[str] = set()
+        self._modes: dict[str, str] = {}
         self.recorder = recorder
 
     async def run(self) -> None:
@@ -247,10 +303,8 @@ class TwitchChat:
         elif cmd == "RECONNECT":
             await self.hub.set_status("twitch", "server asked to reconnect")
             return False
-        elif cmd == "ROOMSTATE" and "room-id" in msg.tags and msg.tags["room-id"] != self._room_id:
-            self._room_id = msg.tags["room-id"]
-            await self.hub.set_status("twitch", f"joined #{self.channel}")
-            asyncio.create_task(self.seventv.load_channel(self._room_id))
+        elif cmd == "ROOMSTATE" and msg.params and msg.params[0].lstrip("#").lower() == self.channel:
+            await self._roomstate(msg.tags)  # only our own channel, never a collab partner's
         elif cmd == "NOTICE" and "Login" in msg.trailing:
             await self.hub.set_status("twitch", f"notice: {msg.trailing}")
         elif cmd == "PRIVMSG":
@@ -269,8 +323,21 @@ class TwitchChat:
                 await self.hub.moderate("twitch", "clear")
         return True
 
+    async def _roomstate(self, tags: dict[str, str]) -> None:
+        """First ROOMSTATE after JOIN has every mode; later ones carry only what changed."""
+        room = tags.get("room-id")
+        if room and room != self._room_id:
+            self._room_id = room
+            self._modes = {}
+            await self.hub.set_status("twitch", f"joined #{self.channel}")
+            asyncio.create_task(self.seventv.load_channel(room))
+        for key in ("subs-only", "emote-only", "followers-only", "slow", "r9k"):
+            if key in tags:
+                self._modes[key] = tags[key]
+        await self.hub.set_status("twitch chat", describe_room_modes(self._modes))  # empty = hidden
+
     async def _handle_usernotice(self, msg: IrcMessage) -> None:
-        msg_id = msg.tags.get("msg-id", "")
+        msg_id = notice_type(msg.tags)
         gift_batch = msg.tags.get("msg-param-community-gift-id")
         if msg_id == "submysterygift" and gift_batch:
             self._mystery_gift_ids.add(gift_batch)

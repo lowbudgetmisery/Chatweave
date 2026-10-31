@@ -34,7 +34,8 @@
 
   // Dock only: status text, Settings and a two-click "Clear overlay" button.
   const statusText = el("span", "status-text");
-  statusEl.appendChild(statusText);
+  const modeBox = el("span", "modes"); // chat modes (sub-only, members-only...) as chips that never get cut off
+  statusEl.append(statusText, modeBox);
   let panel = null;
   let spawnBtn = null;
   if (dock) {
@@ -140,21 +141,32 @@
     const roles = item.roles || [];
     const top = ["broadcaster", "mod", "vip", "member"].find((r) => roles.includes(r));
     const hasBody = (item.fragments || []).some((f) => f.t === "emote" || f.t === "mention" || f.t === "ytemoji" || (f.v || "").trim());
-    const hot = item.event && (item.kind === "raid" || (item.tier || 0) >= 4);
+    // A collab partner's subs and raids show as plain lines: no gold glow that reads as hers.
+    const styled = item.event && !item.shared;
+    const hot = styled && (item.kind === "raid" || (item.tier || 0) >= 4);
 
     const removed = !!item.removed;
     const root = el("article", ["msg", `p-${item.platform}`, top ? `r-${top}` : "",
-      !removed && item.event ? `event k-${item.kind}` : "", !removed && hot ? "hot" : "",
-      !removed && item.mention && !item.event ? "mention" : "", !removed && item.event && !hasBody ? "nobody" : "",
-      removed ? "redacted" : "", instant ? "instant" : ""].filter(Boolean).join(" "));
+      !removed && styled ? `event k-${item.kind}` : "", !removed && hot ? "hot" : "",
+      !removed && item.mention && !item.event ? "mention" : "", !removed && styled && !hasBody ? "nobody" : "",
+      removed ? "redacted" : "", instant ? "instant" : "", item.shared ? "shared" : "",
+      dock && item.first_time && !removed ? "first" : ""].filter(Boolean).join(" "));
     root.dataset.platform = item.platform;
     root.dataset.id = item.id;
     root.dataset.user = item.user_id;
+    if (item.source_id) root.dataset.alt = item.source_id; // Shared Chat: partner channel's id
 
     const head = el("div", "head");
     const plat = el("span", "plat");
     plat.appendChild(platformIcon(item.platform));
     head.append(plat, el("span", "spark", "✦"), el("span", "name", item.author || ""));
+    if (item.shared && settings.shared_chat === "label") {
+      const tag = el("span", "tag collab", "collab");
+      tag.title = "From the partner channel's chat (Twitch Shared Chat)";
+      head.appendChild(tag);
+    }
+    // Twitch shows "first message" to mods only, so this stays in the dock.
+    if (dock && item.first_time && !removed) head.appendChild(el("span", "tag first-tag", "first message"));
     if (!removed && item.amount && (item.kind === "superchat" || item.kind === "supersticker" || item.kind === "bits")) {
       head.appendChild(el("span", "amt", item.amount));
     }
@@ -183,6 +195,12 @@
       }
     }
     const bubble = el("div", "bubble");
+    if (item.reply_to && settings.show_replies !== false) {
+      const reply = el("div", "reply");
+      reply.append(el("span", "reply-arrow", "\u21AA"), el("span", "reply-name", `@${item.reply_to.name}`));
+      if (item.reply_to.text) reply.append(el("span", "reply-text", item.reply_to.text));
+      bubble.appendChild(reply);
+    }
     if (item.event && item.headline) {
       const ev = el("div", "evline");
       ev.append(el("span", "ico", ICONS[item.kind] || "✦"), el("span", "", item.headline));
@@ -211,7 +229,7 @@
   }
 
   function add(item, instant) {
-    if (eventsMode && !item.event) return;
+    if (eventsMode && (!item.event || item.shared)) return; // partner channels' events aren't hers
     if (!dock && !shownOnStream(item)) return;
     let hideIn = hideAfter * 1000;
     if (hideAfter > 0 && instant && item.ts) {
@@ -253,14 +271,21 @@
     for (const node of Array.from(feed.children)) {
       if (node.classList.contains("leaving") || node.classList.contains("removing")) continue;
       if (msg.platform !== "*" && node.dataset.platform !== msg.platform) continue;
-      if (ids && !ids.has(node.dataset.id)) continue;
+      if (ids && !ids.has(node.dataset.id) && !(node.dataset.alt && ids.has(node.dataset.alt))) continue;
       if (msg.user_id !== undefined && node.dataset.user !== msg.user_id) continue;
       if (msg.mode === "placeholder") redact(node); else removeNode(node);
     }
   }
 
   function showStatus(status) {
-    const parts = Object.entries(status || {}).map(([k, v]) => `${k}: ${v}`);
+    const entries = Object.entries(status || {});
+    modeBox.replaceChildren();
+    for (const [k, v] of entries.filter(([k]) => k.endsWith(" chat"))) {
+      const chip = el("span", "mode-chip", `${k.replace(" chat", "")}: ${v}`);
+      chip.title = `Your real ${k} is in this mode right now`;
+      modeBox.appendChild(chip);
+    }
+    const parts = entries.filter(([k]) => !k.endsWith(" chat")).map(([k, v]) => `${k}: ${v}`);
     statusText.textContent = parts.join("   |   ");
     statusText.title = parts.join("\n"); // full text on hover when the bar cuts it off
   }
@@ -398,6 +423,9 @@
       heading("On-stream chat"),
       row("Shows", select("overlay_audience", [["everyone", "Everyone"], ["subs", "Subs, members, VIPs and mods only"]]),
         "Support events always show. Your dock still shows everyone (dimmed lines are off stream)."),
+      row("Collab chat", select("shared_chat", [["label", "Show with a \u201Ccollab\u201D tag"], ["hide", "Hide it"], ["show", "Show, no tag"]]),
+        "Twitch Shared Chat: lines from the partner channel's chat. Their subs and raids never go in your events window."),
+      check("show_replies", "Show what a reply is answering", "Twitch replies get a small \u201Creplying to @name\u201D line"),
       check("hide_commands", "Hide !commands", "Lines like !catch or !discord"),
       chatBots,
       tipBots,

@@ -1,6 +1,6 @@
 # Merged Chat for OBS (Twitch + YouTube)
 
-*Version 1.7.0. The black window from `Start Chat.bat` prints the version on its first line.*
+*Version 1.8.0. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
@@ -19,6 +19,9 @@ Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). *
 - A **separate support-events window**: put bits, Super Chats, subs and raids in their own spot on screen (they also stay in chat)
 - Shows the newest 8 messages; the oldest one fades out at the top as new ones arrive
 - Finds your YouTube stream on its own when you go live. No pasting links every stream.
+- **Collabs (Twitch Shared Chat):** lines from the partner channel's chat get a small "collab" tag (or can be hidden), and their subs and raids never land in your events window
+- Twitch **replies** show what they're answering ("replying to @name")
+- Your dock shows **first-time chatters** (so you can say hi) and your **chat modes** (sub-only, slow, members-only...) while they're on
 - Hides chat bots (Nightbot and friends) and `!commands` like `!catch` or `!discord`, so the overlay stays readable
 - **Sub-only overlay** at the flip of a setting: on stream, only subs, YouTube members, VIPs and mods show. Your real chat stays open.
 - Your own cleanup tools in the dock: **Hide** a line, **Hide user**, **Clear overlay**, a blocked-words list, and a **Settings** panel for all of it. They only change what viewers see on the overlay.
@@ -105,6 +108,8 @@ When the window says `Saved YouTube token`, you're done.
    - **Settings** (top right): sub-only overlay, bots, `!commands`, hidden users, blocked words, what happens when mods act. **Save** applies it instantly; no restart.
    - **Clear overlay** (click twice) empties the chat and events windows.
    - When the overlay is set to subs only, lines viewers can't see on stream are dimmed in your dock.
+   - A green **FIRST MESSAGE** tag marks someone chatting in your Twitch channel for the first time. It only shows in your dock, like on Twitch where only mods see it.
+   - Gold chips at the top show when your real chat is in a special mode: Twitch sub-only, emote-only, followers-only, slow or unique-chat, and YouTube members-only. YouTube only reports changes, so a members-only mode switched on before the app started won't show until it changes.
 
 **Starcatch game (optional, only if you turned it on):** Sources, **+**, **Browser**, URL `http://127.0.0.1:8787/game`, Width `480`, Height `420`. See **Starcatch** below.
 
@@ -157,6 +162,10 @@ Examples: `http://127.0.0.1:8787/?max=6&scale=1.2` or `http://127.0.0.1:8787/eve
 - `hide_tip_bots = false` keeps StreamElements, Streamlabs and SoundAlerts, because hiding them also hides their tip announcements.
 - `hide_commands = true` hides lines starting with `!word`. Paid lines (bits, Super Chats) never count as commands. (Names on the hidden list stay hidden, paid or not.)
 - `hide_users = ["someviewer"]` under `[display]` hides any other names (any capitalization, Twitch and YouTube).
+
+**Collabs (Twitch Shared Chat):** when you share chat with other streamers, their chat flows into yours. `shared_chat` under `[filters]` (or **Collab chat** in the dock's Settings): `"label"` shows those lines with a small "collab" tag (default), `"hide"` leaves them out, `"show"` shows them with no tag. Their subs and raids show as plain lines (no gold glow) and never go in your events window. Twitch doesn't send the partner's channel name without a login, so the tag just says "collab".
+
+**Replies:** `show_replies = true` adds a small "replying to @name: ..." line above Twitch replies. YouTube live chat has no replies.
 
 **Sub-only overlay:** `overlay_audience = "subs"` (or **Shows** in the dock's Settings) shows only Twitch subs, YouTube members, VIPs, mods and you on stream, plus every support event. YouTube doesn't say who is a channel *subscriber*, only who is a *member*, so on YouTube it's members. This doesn't change your real chat; to actually put chat in sub-only or members-only mode, use the normal Twitch and YouTube chat settings.
 

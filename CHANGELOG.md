@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.8.0
+
+Added
+- Twitch Shared Chat (collabs): partner-channel lines get a "collab" tag, or can be hidden or shown plain (`shared_chat`). Partner subs and raids show as plain lines and stay out of the events window. Deletes that name the partner channel's message id remove the copy too.
+- Twitch replies show a small "replying to @name: ..." line (`show_replies`).
+- First-time Twitch chatters get a FIRST MESSAGE tag in the dock only.
+- Dock shows chat modes as chips while they're on: Twitch sub-only, emote-only, followers-only, slow, unique-chat; YouTube members-only.
+- Demo feed includes a reply, a first-time chatter and a collab line.
+
 ## 1.7.0
 
 Added

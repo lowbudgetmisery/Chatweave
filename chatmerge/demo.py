@@ -29,6 +29,10 @@ SCRIPT: list[dict] = [
     {"platform": "twitch", "author": "glimmerfox", "text": "that was so clean", "emote": True},
     {"platform": "twitch", "author": "Raccomi3", "text": "@kanekolumi you have to try the new map"},
     {"platform": "youtube", "author": "@Lemons2", "text": "happy stream day @Lumi!!"},
+    {"platform": "twitch", "author": "Kaneko4", "text": "@Raccomi3 the cave map is way better",
+     "reply_to": {"name": "Raccomi3", "text": "@kanekolumi you have to try the new map"}},
+    {"platform": "twitch", "author": "NewStar7", "text": "hi! just found this stream", "first_time": True},
+    {"platform": "twitch", "author": "Orbit8", "text": "hello from the other chat", "shared": True},
     # Hidden from chat by default (!commands); they play Starcatch when [game] is on.
     {"platform": "twitch", "author": "Kaneko4", "text": "!catch"},
     {"platform": "youtube", "author": "@Lemons2", "text": "!catch"},
@@ -52,6 +56,9 @@ def _item(spec: dict) -> ChatItem:
         headline=spec.get("headline"),
         amount=spec.get("amount"),
         tier=spec.get("tier"),
+        reply_to=spec.get("reply_to"),
+        first_time=spec.get("first_time", False),
+        shared=spec.get("shared", False),
     )
 
 

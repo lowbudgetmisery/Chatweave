@@ -104,7 +104,8 @@ def _parse_ts(value: str) -> float | None:
 def map_message(pb2: Any, msg: Any) -> tuple[str, Any]:
     """Map one LiveChatMessage to (action, payload).
 
-    actions: add (ChatItem), delete (message id), timeout / ban (channel id), ended (None), skip (None)
+    actions: add (ChatItem), delete (message id), timeout / ban (channel id), ended (None),
+             members_only (True on / False off), skip (None)
     """
     T = pb2.LiveChatMessageSnippet.TypeWrapper
     snip = msg.snippet
@@ -113,6 +114,10 @@ def map_message(pb2: Any, msg: Any) -> tuple[str, Any]:
 
     if kind_type == T.CHAT_ENDED_EVENT:
         return "ended", None
+    if kind_type == T.SPONSOR_ONLY_MODE_STARTED_EVENT:
+        return "members_only", True
+    if kind_type == T.SPONSOR_ONLY_MODE_ENDED_EVENT:
+        return "members_only", False
     if kind_type == T.TOMBSTONE:
         return "delete", msg.id
     if kind_type == T.USER_BANNED_EVENT:
@@ -261,6 +266,9 @@ class YouTubeDispatcher:
             await self.hub.moderate("youtube", "delete", ids=[payload])
         elif action in ("timeout", "ban"):
             await self.hub.moderate("youtube", action, user_id=payload)
+        elif action == "members_only":
+            # Only changes are reported, so a mode already on before we connected isn't known.
+            await self.hub.set_status("youtube chat", "members-only" if payload else "")
         return action
 
 

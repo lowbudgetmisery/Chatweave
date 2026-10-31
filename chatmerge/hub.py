@@ -118,8 +118,8 @@ class Hub:
         payload = item.to_json()
         payload["sub_ok"] = audience_ok(item)
         self._recent.append(payload)
-        if payload["event"]:
-            self._events.append(payload)
+        if payload["event"] and not payload["shared"]:
+            self._events.append(payload)  # a collab partner's subs and raids stay out of her events window
         await self._broadcast({"op": "add", "item": payload})
 
     async def announce(self, payload: dict[str, Any]) -> None:
@@ -148,7 +148,8 @@ class Hub:
             if platform != "*" and m["platform"] != platform:
                 return False
             if ids is not None:
-                return m["id"] in wanted
+                # Shared Chat: a delete may name the partner channel's id for the message
+                return m["id"] in wanted or (m.get("source_id") is not None and m["source_id"] in wanted)
             if user_id is not None:
                 return m["user_id"] == user_id
             return True
@@ -166,10 +167,15 @@ class Hub:
         return mode
 
     async def set_status(self, source: str, text: str) -> None:
-        if self._status.get(source) == text:
+        """Empty text removes that entry (for example "twitch chat" when no special mode is on)."""
+        if self._status.get(source, "") == text:
             return
-        self._status[source] = text
-        log.info("[%s] %s", source, text)
+        if text:
+            self._status[source] = text
+            log.info("[%s] %s", source, text)
+        else:
+            self._status.pop(source, None)
+            log.info("[%s] cleared", source)
         await self._broadcast({"op": "status", "status": dict(self._status)})
 
     @property

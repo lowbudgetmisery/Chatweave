@@ -20,6 +20,7 @@ MODES = ("remove", "placeholder", "keep")
 DOCK_HIDE_MODES = ("remove", "placeholder")
 REMOVAL_STYLES = ("fade", "instant")
 AUDIENCES = ("everyone", "subs")
+SHARED_CHAT = ("label", "hide", "show")
 # Platform mod actions plus the dock's buttons. dock_clear always removes.
 ACTIONS = ("delete", "timeout", "ban", "clear", "dock_hide", "dock_clear")
 
@@ -55,6 +56,9 @@ class OverlaySettings:
     hide_users: list[str] = field(default_factory=list)
     # "subs": the on-stream chat shows only subs, members, VIPs, mods, you, and support events.
     overlay_audience: str = "everyone"
+    # Twitch Shared Chat (collabs): partner channel lines get a "collab" tag, are hidden, or show plain.
+    shared_chat: str = "label"
+    show_replies: bool = True  # "replying to @name: ..." line above Twitch replies
 
     def mode_for(self, action: str) -> str:
         if action == "dock_clear":
@@ -80,6 +84,8 @@ class OverlaySettings:
             problems.append(f'removal_style must be "fade" or "instant" (got {self.removal_style!r})')
         if self.overlay_audience not in AUDIENCES:
             problems.append(f'overlay_audience must be "everyone" or "subs" (got {self.overlay_audience!r})')
+        if self.shared_chat not in SHARED_CHAT:
+            problems.append(f'shared_chat must be "label", "hide" or "show" (got {self.shared_chat!r})')
         if not self.placeholder_text.strip():
             problems.append("placeholder_text can't be empty")
         elif len(self.placeholder_text) > MAX_TEXT_LEN:

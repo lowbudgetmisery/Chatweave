@@ -25,6 +25,11 @@ overlay_audience = "everyone"
 hide_commands = true      # hide lines that start with !word (!catch, !discord, ...)
 hide_known_bots = true    # Nightbot, Fossabot, Moobot, Wizebot, Sery_Bot, Botisimo
 hide_tip_bots = false     # StreamElements, Streamlabs, SoundAlerts (also hides their tip announcements)
+# Twitch Shared Chat (collabs): lines from the partner channel's chat.
+# "label" = show with a small "collab" tag, "hide" = don't show, "show" = show with no tag.
+# Their subs and raids never go in your events window either way.
+shared_chat = "label"
+show_replies = true       # small "replying to @name: ..." line above Twitch replies
 
 [moderation]
 # What the overlay does when a mod acts in Twitch or YouTube (or you use the dock):

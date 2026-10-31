@@ -58,16 +58,20 @@ class LineFilter:
             names |= TIP_BOTS
         self.hidden_names = frozenset(names)
         self.hide_commands = settings.hide_commands
+        self.hide_shared = settings.shared_chat == "hide"
 
     def drop_reason(self, item: ChatItem) -> str | None:
         """Why this line never reaches the overlay, or None to keep it."""
-        return self._reason(item.author, item.kind, item.fragments)
+        return self._reason(item.author, item.kind, item.fragments, item.shared)
 
     def drops_payload(self, payload: dict[str, Any]) -> bool:
         """Same rules for a line already in the backlog (used when settings change)."""
-        return self._reason(payload["author"], payload["kind"], payload["fragments"]) is not None
+        return self._reason(payload["author"], payload["kind"], payload["fragments"],
+                            bool(payload.get("shared"))) is not None
 
-    def _reason(self, author: str, kind: str, fragments: list[dict[str, str]]) -> str | None:
+    def _reason(self, author: str, kind: str, fragments: list[dict[str, str]], shared: bool) -> str | None:
+        if shared and self.hide_shared:
+            return "Shared Chat partner channel"
         if normalize_name(author) in self.hidden_names:
             return "hidden user or bot"
         if self.hide_commands and _is_command(kind, fragments):

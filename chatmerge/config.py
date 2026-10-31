@@ -109,7 +109,7 @@ def load(path: Path = DEFAULT_CONFIG, demo: bool = False) -> Config:
 _OVERLAY_KEYS = {
     "moderation": ("on_delete", "on_timeout", "on_ban", "on_clear", "on_dock_hide", "placeholder_text",
                    "removal_style", "blocked_words", "block_links", "exempt_mods"),
-    "filters": ("hide_commands", "hide_known_bots", "hide_tip_bots", "overlay_audience"),
+    "filters": ("hide_commands", "hide_known_bots", "hide_tip_bots", "overlay_audience", "shared_chat", "show_replies"),
     "display": ("hide_users",),
 }
 

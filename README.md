@@ -2,6 +2,8 @@
 
 **Twitch and YouTube chat woven into one overlay for OBS**, with 7TV, BTTV and FFZ emotes, a cleanup dock, and an optional chat game.
 
+[![Ko-fi](https://img.shields.io/static/v1?label=Ko-fi&message=lowbudgetmisery&color=FF5E5B&style=flat&logo=kofi&logoColor=white)](https://ko-fi.com/lowbudgetmisery)
+
 *Version 1.12.0. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
@@ -199,6 +201,8 @@ Nothing is lost while it waits; the next connection picks up every message. The 
 
 **@mention highlight:** in `config.toml`, `mention_names = ["kanekolumi", "lumi"]` lists the names that trigger the gold highlight (any capitalization). It only matches the whole name after an `@`, so `@Lumi1` or `@lumi_fan` won't trigger it. The color is `--mention` at the top of `overlay.css`.
 
+> If you would rather not edit config files or theme files, lowbudgetmisery takes requests for custom Chatweave themes and for mascot or game asset swaps, and also does VTuber Shorts and video editing. Message via [Ko-fi](https://ko-fi.com/lowbudgetmisery). This does not include live OBS tech support. Chatweave itself stays free, with no paywalled features.
+
 ---
 
 ## Moderation and cleanup
@@ -342,6 +346,12 @@ Speed `4` plays four times faster; `0` plays it all at once. Recordings contain 
 - The overlay only answers pages it served itself on `127.0.0.1`. Other websites open in your browser can't read chat or press the dock's buttons.
 - To remove access at any time: [myaccount.google.com/permissions](https://myaccount.google.com/permissions), find your app, **Remove access**.
 - The YouTube API is free, with a daily allowance per Google project (see **YouTube daily allowance** above).
+
+---
+
+## Support
+
+Chatweave is free to use. Tips are optional on [Ko-fi](https://ko-fi.com/lowbudgetmisery). Starring this repo and sharing it with another streamer also helps.
 
 ---
 

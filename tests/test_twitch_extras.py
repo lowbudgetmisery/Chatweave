@@ -25,14 +25,14 @@ OWN_SUB = ("@badges=;display-name=Halo5;emotes=;id=n1;login=halo5;msg-id=sub;roo
            f"system-msg=Halo5\\ssubscribed;user-id=5 :tmi.twitch.tv USERNOTICE {CH}")
 
 
-class FakeSevenTV:
+class FakeEmotes:
     async def load_global(self) -> None:
         return None
 
     async def load_channel(self, _: str) -> None:
         return None
 
-    def expand(self, fragments: list) -> list:
+    def expand(self, fragments: list, login: str = "") -> list:
         return fragments
 
 
@@ -90,7 +90,7 @@ class FlowTests(unittest.TestCase):
 
         async def go() -> None:
             await hub.attach(WS())  # type: ignore[arg-type]
-            chat = TwitchChat("kanekolumi", hub, None, FakeSevenTV())  # type: ignore[arg-type]
+            chat = TwitchChat("kanekolumi", hub, None, FakeEmotes())  # type: ignore[arg-type]
             for line in lines:
                 await chat.handle_line(NoSocket(), line)  # type: ignore[arg-type]
 

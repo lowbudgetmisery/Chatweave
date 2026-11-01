@@ -24,7 +24,13 @@
 
   const feed = document.getElementById("feed");
   const statusEl = document.getElementById("status");
-  const IMG_OK = ["https://static-cdn.jtvnw.net/", "https://cdn.7tv.app/", "/static/", "/custom/"];
+  const IMG_OK = ["https://static-cdn.jtvnw.net/", "https://cdn.7tv.app/", "https://cdn.betterttv.net/",
+    "https://cdn.frankerfacez.com/", "/static/", "/custom/"];
+  // Emote effects from BTTV modifiers (w! h! v! z! c! l! r! p! s!) and FFZ effect emotes.
+  const FX_FILTERS = { cursed: "grayscale(1) brightness(0.7) contrast(2.5)",
+    "hyper-red": "brightness(0.2) sepia(1) brightness(2.2) contrast(3) saturate(8)" };
+  // Each of these gets its own wrapper, so a spin never cancels a shake or a flip.
+  const FX_WRAPS = ["rotate-left", "rotate-right", "party", "rainbow", "shake", "hyper-shake", "spin", "jam", "bounce"];
   const ICONS = { sub: "✧", gift: "❖", bits: "◆", raid: "☄", superchat: "✦", supersticker: "✦", member: "✧",
     announcement: "✺", milestone: "✧" };
   const NOTICE_KINDS = new Set(["announcement", "milestone"]); // highlighted lines that aren't support events
@@ -122,17 +128,54 @@
     return svg;
   }
 
+  function emoteNode(f) {
+    const img = el("img", "emote");
+    img.src = f.url;
+    img.alt = f.name || "";
+    img.title = f.name || "";
+    img.decoding = "async";
+    img.addEventListener("error", () => img.replaceWith(document.createTextNode(f.name || "")), { once: true });
+    const fx = Array.isArray(f.fx) ? f.fx : [];
+    if (!fx.length) return img;
+    if (fx.includes("wide")) img.classList.add("fx-wide");
+    const sx = fx.includes("flip-h") ? -1 : 1;
+    const sy = fx.includes("flip-v") ? -1 : 1;
+    if (sx < 0 || sy < 0) img.style.scale = `${sx} ${sy}`;
+    const filters = Object.keys(FX_FILTERS).filter((k) => fx.includes(k)).map((k) => FX_FILTERS[k]);
+    if (filters.length) img.style.filter = filters.join(" ");
+    let node = img;
+    for (const name of FX_WRAPS) {
+      if (!fx.includes(name)) continue;
+      const wrap = el("span", `fx fx-${name}`);
+      wrap.append(node);
+      node = wrap;
+    }
+    return node;
+  }
+
   function renderFragments(target, fragments) {
+    let lastEmote = null; // the node a zero-width emote stacks on
     for (const f of fragments || []) {
       if (f.t === "emote" && typeof f.url === "string" && IMG_OK.some((p) => f.url.startsWith(p))) {
-        const img = el("img", "emote");
-        img.src = f.url;
-        img.alt = f.name || "";
-        img.title = f.name || "";
-        img.decoding = "async";
-        img.addEventListener("error", () => img.replaceWith(document.createTextNode(f.name || "")), { once: true });
-        target.appendChild(img);
-      } else if (f.t === "emote") {
+        const node = emoteNode(f);
+        if (f.zw && lastEmote) {
+          // zero-width (7TV, BTTV cvMask..., FFZ overlays): draw on top of the emote before it
+          let stack = lastEmote;
+          if (!stack.classList.contains("emote-stack")) {
+            stack = el("span", "emote-stack");
+            lastEmote.replaceWith(stack);
+            stack.append(lastEmote);
+            lastEmote = stack;
+          }
+          stack.append(node);
+        } else {
+          target.appendChild(node);
+          lastEmote = node;
+        }
+        continue;
+      }
+      lastEmote = null;
+      if (f.t === "emote") {
         target.appendChild(document.createTextNode(f.name || ""));
       } else if (f.t === "ytemoji") {
         target.appendChild(el("span", "yte", f.v || ""));

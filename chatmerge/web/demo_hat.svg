@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Demo zero-width emote: a little top hat that sits on the emote before it. Original art. -->
+  <ellipse cx="32" cy="17" rx="17" ry="4" fill="#2a1d3a" stroke="#120a1c" stroke-width="1.5"/>
+  <path d="M21 16 L22.5 2.5 Q32 0 41.5 2.5 L43 16 Z" fill="#3b2a52" stroke="#120a1c" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M22 12.5 Q32 14.5 42 12.5 L42.3 15.5 Q32 17.5 21.7 15.5 Z" fill="#ff7a59"/>
+</svg>

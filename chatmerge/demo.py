@@ -9,6 +9,7 @@ from .hub import Hub
 from .models import ChatItem, emote_frag, text_frag
 
 STAR = "/static/demo_star.svg"
+HAT = "/static/demo_hat.svg"  # stands in for a zero-width emote like BTTV TopHat
 
 SCRIPT: list[dict] = [
     {"platform": "twitch", "author": "NightOwl_88", "text": "first time catching the stream live, hi everyone"},
@@ -42,11 +43,16 @@ SCRIPT: list[dict] = [
     {"platform": "youtube", "author": "@Lemons2", "text": "!heist"},
     {"platform": "twitch", "author": "Raccomi3", "text": "!steal"},
     {"platform": "twitch", "author": "Lumi1", "text": "!stash"},
+    # How 7TV / BTTV / FFZ extras look: a zero-width hat stacked on an emote, and p! s! (party, shake)
+    {"platform": "twitch", "author": "Kaneko4", "frags": [
+        text_frag("hat on "), emote_frag("starPog", STAR), {"t": "emote", "name": "TopHat", "url": HAT, "zw": True}]},
+    {"platform": "twitch", "author": "Raccomi3", "frags": [
+        text_frag("party time "), {"t": "emote", "name": "starPog", "url": STAR, "fx": ["party", "shake"]}]},
 ]
 
 
 def _item(spec: dict) -> ChatItem:
-    frags = [text_frag(spec["text"])] if spec.get("text") else []
+    frags = list(spec["frags"]) if spec.get("frags") else [text_frag(spec["text"])] if spec.get("text") else []
     if spec.get("emote"):
         frags = frags + [text_frag(" "), emote_frag("starPog", STAR)]
     return ChatItem(

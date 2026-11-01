@@ -9,7 +9,6 @@ from chatmerge import protogen
 from chatmerge.hub import Hub
 from chatmerge.models import ChatItem, text_frag
 from chatmerge.settings import OverlaySettings
-from chatmerge.seventv import SevenTV, parse_emote_set
 from chatmerge.twitch_irc import (
     item_from_privmsg,
     item_from_usernotice,
@@ -37,19 +36,6 @@ RAID = (
     "@badges=;display-name=HollowSun;emotes=;id=r1;login=hollowsun;msg-id=raid;msg-param-viewerCount=42;"
     "system-msg=42\\sraiders\\sfrom\\sHollowSun\\shave\\sjoined!;user-id=88 :tmi.twitch.tv USERNOTICE #somechannel"
 )
-
-SEVENTV_SET = {
-    "emotes": [
-        {
-            "name": "glorp",
-            "flags": 0,
-            "data": {"host": {"url": "//cdn.7tv.app/emote/01J94DZYDR0008SGMD5K4B9HFW",
-                              "files": [{"name": "1x.webp"}, {"name": "2x.webp"}]}},
-        },
-        {"name": "broken", "data": {}},
-    ]
-}
-
 
 class TwitchTests(unittest.TestCase):
     def test_parse_privmsg_with_emotes_and_roles(self) -> None:
@@ -96,18 +82,6 @@ class TwitchTests(unittest.TestCase):
     def test_badges(self) -> None:
         self.assertEqual(roles_from_badges("broadcaster/1,subscriber/0"), ["broadcaster", "member"])
         self.assertEqual(roles_from_badges(""), [])
-
-
-class SevenTVTests(unittest.TestCase):
-    def test_parse_and_expand(self) -> None:
-        emotes = parse_emote_set(SEVENTV_SET)
-        self.assertEqual(emotes, {"glorp": "https://cdn.7tv.app/emote/01J94DZYDR0008SGMD5K4B9HFW/2x.webp"})
-        stv = SevenTV(session=None)  # type: ignore[arg-type]
-        stv._global = emotes
-        out = stv.expand([text_frag("hi glorp  there"), {"t": "emote", "name": "Kappa", "url": "u"}])
-        self.assertEqual([f["t"] for f in out], ["text", "emote", "text", "emote"])
-        self.assertEqual(out[0]["v"], "hi ")
-        self.assertEqual(out[2]["v"], "  there")
 
 
 class YouTubeTests(unittest.TestCase):

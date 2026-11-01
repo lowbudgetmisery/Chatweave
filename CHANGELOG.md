@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.10.0
+
+- Added: **BetterTTV and FrankerFaceZ emotes** (global and the channel's own, including BTTV shared emotes), alongside Twitch and 7TV. On a name clash, channel emotes win over global ones, then 7TV, BTTV, FFZ.
+- Added: **zero-width emotes** stack on the emote before them (7TV zero-width emotes, BTTV `cvMask`/`cvHazmat`/`TopHat` and friends, visible FFZ modifier emotes). Works on Twitch's own emotes too.
+- Added: **BTTV emote modifiers** `w!` `h!` `v!` `z!` `c!` `l!` `r!` `p!` `s!`, and **FFZ effect emotes** (`ffzW`, `ffzX`, `ffzY`, `ffzCursed`; supporter-only effects like `ffzHyper` and `ffzRainbow` only for the people FFZ lists). Same looks as the add-ons.
+- All three lists reload every 15 minutes. If one add-on's site is down, the others keep working and the last good list stays.
+- Demo mode shows a zero-width emote and the party/shake effects.
+
 ## 1.9.0
 
 - New chat game, **Gliese Heist**, replacing Starcatch. Built around Lumi's space thief lore: heists her Gumis join with `!heist` (more crew, better odds; loot for everyone on success), quick `!steal` races, and `!stash` ranks from Gumi Recruit to Lumi's Favorite Gumi. Starts at random times or from the dock (**Start heist**, **Quick steal**). Still overlay-only: nothing is posted to chat.

@@ -1,6 +1,6 @@
 # Merged Chat for OBS (Twitch + YouTube)
 
-*Version 1.9.0. The black window from `Start Chat.bat` prints the version on its first line.*
+*Version 1.10.0. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
@@ -13,7 +13,8 @@ Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). *
 ## What it does
 
 - Twitch and YouTube chat in one feed, with a small icon showing where each message came from
-- Twitch emotes and **7TV** emotes, plus your **YouTube member emojis** from your own image files
+- Twitch emotes plus **7TV, BetterTTV (BTTV) and FrankerFaceZ (FFZ)** emotes, global and your channel's, plus your **YouTube member emojis** from your own image files
+- The add-ons' extras work too: zero-width emotes that sit on top of another emote (7TV, BTTV `cvMask`/`TopHat`, FFZ), BTTV modifiers (`w!` wide, `h!`/`v!` flip, `z!` no gap, `c!` cursed, `l!`/`r!` rotate, `p!` party, `s!` shake) and FFZ effect emotes (`ffzW`, `ffzX`, `ffzY`, `ffzCursed`, plus supporter effects for the people who have them)
 - Messages that **@mention you** (like `@kanekolumi` or `@Lumi`) get a gold rim so they don't get lost
 - Highlighted lines for **subs, gift subs, bits, raids, Super Chats, Super Stickers and new members**
 - A **separate support-events window**: put bits, Super Chats, subs and raids in their own spot on screen (they also stay in chat)
@@ -283,7 +284,7 @@ Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits l
 | "Address already in use" | Another app is using port 8787. Change `port` in `config.toml` and use the new number in the OBS URLs. |
 | Something odd happened mid-stream | Look in the **`logs`** folder: `chatmerge.log` has what happened, with times. Send it along when asking for help (it contains chat names, so share it privately). |
 | "Could not read settings.json" at startup | The dock's saved settings file got damaged. Rename `settings.json` (to keep it) and start again; you'll be back on `config.toml` settings. |
-| 7TV emotes show as plain words | The 7TV list loads on startup and refreshes every 15 minutes. New emotes appear after that, or restart `Start Chat.bat`. |
+| 7TV, BTTV or FFZ emotes show as plain words | The lists load on startup and refresh every 15 minutes, so an emote added mid-stream shows up within 15 minutes (or restart `Start Chat.bat`). If one add-on's site is down, the other two keep working; the log file says which one failed. |
 
 ---
 
@@ -315,4 +316,4 @@ Speed `4` plays four times faster; `0` plays it all at once. Recordings contain 
 
 ---
 
-*Unofficial fan-made tool, built by lowbudgetmisery. Free to use, change and share under the MIT license (see `LICENSE`). Not affiliated with Twitch, YouTube, Google, 7TV or Phase Connect.*
+*Unofficial fan-made tool, built by lowbudgetmisery. Free to use, change and share under the MIT license (see `LICENSE`). Not affiliated with Twitch, YouTube, Google, 7TV, BetterTTV, FrankerFaceZ or Phase Connect.*

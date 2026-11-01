@@ -17,14 +17,14 @@ from chatmerge.youtube_live import YouTubeDispatcher
 FIXTURE = Path(__file__).parent / "fixtures" / "real_shapes_2026-10-31.jsonl"
 
 
-class FakeSevenTV:
+class FakeEmotes:
     async def load_global(self) -> None:
         return None
 
     async def load_channel(self, _: str) -> None:
         return None
 
-    def expand(self, fragments: list) -> list:
+    def expand(self, fragments: list, login: str = "") -> list:
         return fragments
 
 
@@ -49,7 +49,7 @@ class RealShapesTests(unittest.TestCase):
         logging.getLogger().addHandler(handler)
 
         async def run() -> int:
-            twitch = TwitchChat(header["twitch_channel"], hub, None, FakeSevenTV())  # type: ignore[arg-type]
+            twitch = TwitchChat(header["twitch_channel"], hub, None, FakeEmotes())  # type: ignore[arg-type]
             youtube = YouTubeDispatcher(hub, pb2)
 
             async def on_twitch(line: str) -> None:

@@ -29,7 +29,7 @@ def text_frag(value: str) -> dict[str, str]:
     return {"t": "text", "v": value}
 
 
-def emote_frag(name: str, url: str) -> dict[str, str]:
+def emote_frag(name: str, url: str) -> dict[str, Any]:
     return {"t": "emote", "name": name, "url": url}
 
 

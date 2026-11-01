@@ -11,13 +11,13 @@ import aiohttp
 from .hub import Hub
 from .models import ChatItem, Kind, emote_frag, text_frag
 from .recorder import Recorder
-from .seventv import SevenTV
+from .emotes import ThirdPartyEmotes
 
 log = logging.getLogger("chatmerge.twitch")
 
 IRC_URL = "wss://irc-ws.chat.twitch.tv:443"
 EMOTE_URL = "https://static-cdn.jtvnw.net/emoticons/v2/{id}/default/dark/2.0"
-SEVENTV_REFRESH_S = 15 * 60
+EMOTE_REFRESH_S = 15 * 60  # 7TV, BTTV and FFZ lists are reloaded this often
 
 _TAG_ESCAPES = {":": ";", "s": " ", "\\": "\\", "r": "\r", "n": "\n"}
 
@@ -244,21 +244,21 @@ class TwitchChat:
         channel: str,
         hub: Hub,
         session: aiohttp.ClientSession,
-        seventv: SevenTV,
+        emotes: ThirdPartyEmotes,
         recorder: Recorder | None = None,
     ) -> None:
         self.channel = channel.lower().lstrip("#")
         self.hub = hub
         self.session = session
-        self.seventv = seventv
+        self.emotes = emotes
         self._room_id: str | None = None
         self._mystery_gift_ids: set[str] = set()
         self._modes: dict[str, str] = {}
         self.recorder = recorder
 
     async def run(self) -> None:
-        await self.seventv.load_global()
-        refresher = asyncio.create_task(self._refresh_7tv_loop())
+        await self.emotes.load_global()
+        refresher = asyncio.create_task(self._refresh_emotes_loop())
         backoff = 1.0
         try:
             while True:
@@ -273,11 +273,12 @@ class TwitchChat:
         finally:
             refresher.cancel()
 
-    async def _refresh_7tv_loop(self) -> None:
+    async def _refresh_emotes_loop(self) -> None:
         while True:
-            await asyncio.sleep(SEVENTV_REFRESH_S)
+            await asyncio.sleep(EMOTE_REFRESH_S)
+            await self.emotes.load_global()
             if self._room_id:
-                await self.seventv.load_channel(self._room_id)
+                await self.emotes.load_channel(self._room_id)
 
     async def _session_once(self) -> None:
         await self.hub.set_status("twitch", f"connecting to #{self.channel}")
@@ -316,7 +317,7 @@ class TwitchChat:
             await self.hub.set_status("twitch", f"notice: {msg.trailing}")
         elif cmd == "PRIVMSG":
             item = item_from_privmsg(msg)
-            item.fragments = self.seventv.expand(item.fragments)
+            item.fragments = self.emotes.expand(item.fragments, login=msg.prefix.partition("!")[0])
             await self.hub.add(item)
         elif cmd == "USERNOTICE":
             await self._handle_usernotice(msg)
@@ -337,7 +338,7 @@ class TwitchChat:
             self._room_id = room
             self._modes = {}
             await self.hub.set_status("twitch", f"joined #{self.channel}")
-            asyncio.create_task(self.seventv.load_channel(room))
+            asyncio.create_task(self.emotes.load_channel(room))
         for key in ("subs-only", "emote-only", "followers-only", "slow", "r9k"):
             if key in tags:
                 self._modes[key] = tags[key]
@@ -354,5 +355,5 @@ class TwitchChat:
             return  # individual recipients of a mass gift: the summary line already showed
         item = item_from_usernotice(msg)
         if item is not None:
-            item.fragments = self.seventv.expand(item.fragments)
+            item.fragments = self.emotes.expand(item.fragments, login=msg.tags.get("login", ""))
             await self.hub.add(item)

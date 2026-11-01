@@ -177,6 +177,50 @@ body {
   margin: -0.25em 0.06em;
 }
 
+/* Zero-width emotes (7TV, BTTV cvMask/TopHat..., FFZ overlays) stack on the emote before them */
+.emote-stack {
+  display: inline-grid;
+  place-items: center;
+  vertical-align: middle;
+  margin: -0.25em 0.06em;
+}
+.emote-stack > * { grid-area: 1 / 1; }
+.emote-stack .emote { margin: 0; }
+/* Emote effects: BTTV modifiers and FFZ effect emotes (same looks as the add-ons) */
+.fx { display: inline-block; vertical-align: middle; }
+.emote.fx-wide { width: calc(1.55em * 4); height: 1.55em; object-fit: fill; }
+.fx-rotate-left { rotate: -90deg; }
+.fx-rotate-right { rotate: 90deg; }
+.fx-party { animation: fx-party 1.5s linear infinite; }
+.fx-rainbow { animation: fx-rainbow 2s linear infinite; }
+.fx-shake { animation: fx-shake 500ms step-start infinite; }
+.fx-hyper-shake { animation: fx-hyper-shake 0.1s linear infinite; }
+.fx-spin { animation: fx-spin 1.5s linear infinite; }
+.fx-jam { animation: fx-jam 0.6s linear infinite; }
+.fx-bounce { animation: fx-bounce 0.5s linear infinite; transform-origin: bottom center; }
+@keyframes fx-party {
+  0% { filter: sepia(0.5) hue-rotate(0deg) saturate(2.5); }
+  100% { filter: sepia(0.5) hue-rotate(360deg) saturate(2.5); }
+}
+@keyframes fx-rainbow { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+@keyframes fx-shake {
+  0% { translate: 0px 1px; } 10% { translate: 2px 0px; } 20% { translate: 1px -2px; } 30% { translate: -2px 1px; }
+  40% { translate: 0px -1px; } 50% { translate: 2px 2px; } 60% { translate: -1px -1px; } 70% { translate: -2px 2px; }
+  80% { translate: 2px 1px; } 90% { translate: -1px -2px; } 100% { translate: 1px 0px; }
+}
+@keyframes fx-hyper-shake {
+  0% { translate: 0 0; } 25% { translate: 3px -2px; } 50% { translate: -3px 2px; } 75% { translate: 2px 3px; } 100% { translate: -2px -3px; }
+}
+@keyframes fx-spin { from { rotate: 0deg; } to { rotate: 360deg; } }
+@keyframes fx-jam {
+  0%, 100% { translate: 0 0; rotate: 0deg; } 25% { translate: -2px -1px; rotate: -6deg; }
+  50% { translate: 0 -2px; rotate: 0deg; } 75% { translate: 2px -1px; rotate: 6deg; }
+}
+@keyframes fx-bounce { 0%, 100% { scale: 1 1; } 50% { scale: 1.1 0.85; } }
+@media (prefers-reduced-motion: reduce) {
+  .fx { animation: none !important; }
+}
+
 /* YouTube channel-emoji code with no image in the emotes folder */
 .yte {
   display: inline-block;

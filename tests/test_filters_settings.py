@@ -248,7 +248,7 @@ class RecorderFailureTests(unittest.TestCase):
 class RecordReplayTests(unittest.TestCase):
     def test_round_trip_through_real_handlers(self) -> None:
         from chatmerge.recorder import Recorder, RecordingError, read_recording, replay
-        from chatmerge.seventv import SevenTV
+        from chatmerge.emotes import ThirdPartyEmotes
         from chatmerge.twitch_irc import TwitchChat
         from chatmerge.youtube_live import YouTubeDispatcher
 
@@ -293,7 +293,7 @@ class RecordReplayTests(unittest.TestCase):
 
                 hub.add_hook(hook)
                 async with aiohttp.ClientSession() as session:
-                    twitch = TwitchChat("kanekolumi", hub, session, SevenTV(session))
+                    twitch = TwitchChat("kanekolumi", hub, session, ThirdPartyEmotes(session))
 
                     class NoSocket:
                         async def send_str(self, _: str) -> None:

@@ -27,7 +27,7 @@ from .custom_emotes import CustomEmotes
 from .demo import run_demo
 from .hub import Hub
 from .recorder import Recorder, RecordingError, read_recording, replay
-from .seventv import SevenTV
+from .emotes import ThirdPartyEmotes
 from .server import build_app
 from .settings import SettingsError, SettingsStore
 
@@ -120,7 +120,7 @@ async def _serve(
                 if cfg.twitch_enabled:
                     from .twitch_irc import TwitchChat
 
-                    twitch = TwitchChat(cfg.twitch_channel, hub, session, SevenTV(session), recorder=recorder)
+                    twitch = TwitchChat(cfg.twitch_channel, hub, session, ThirdPartyEmotes(session), recorder=recorder)
                     tasks.append(asyncio.create_task(_supervise("twitch", hub, twitch.run)))
                 if cfg.youtube_enabled:
                     from .youtube_live import YouTubeChat
@@ -159,9 +159,9 @@ async def _replay(hub: Hub, session: aiohttp.ClientSession, path: Path, speed: f
     channel = str(header.get("twitch_channel") or "replay")
     pace = "as fast as possible" if speed == 0 else f"at {speed:g}x speed"
     await hub.set_status("replay", f'playing "{path.name}" {pace} (recorded {header.get("started", "?")})')
-    seventv = SevenTV(session)
-    await seventv.load_global()
-    twitch = TwitchChat(channel, hub, session, seventv)
+    emotes = ThirdPartyEmotes(session)
+    await emotes.load_global()
+    twitch = TwitchChat(channel, hub, session, emotes)
     sock = _NoSocket()
     youtube: Any = None  # (pb2, dispatcher), built on the first YouTube line
 

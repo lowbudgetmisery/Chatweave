@@ -1,14 +1,14 @@
-# Builds the no-Python-needed app: dist\chatmerge\chatmerge.exe plus launchers, and
-# dist\chatmerge_app_v<version>.zip ready to hand to someone. Run on Windows:
+# Builds the no-Python-needed app: dist\chatweave\chatweave.exe plus launchers, and
+# dist\chatweave_app_v<version>.zip ready to hand to someone. Run on Windows:
 #   powershell -NoProfile -ExecutionPolicy Bypass -File ".\build_exe.ps1"
 # Uses its own .build-venv so the normal .venv is never touched. Never packs secrets.
-param([string]$Python = $env:CHATMERGE_PYTHON)  # optional: exact python.exe to build with (GitHub passes its own)
+param([string]$Python = $env:CHATWEAVE_PYTHON)  # optional: exact python.exe to build with (GitHub passes its own)
 $ErrorActionPreference = "Stop"
 $Root = $PSScriptRoot
 $BuildVenv = Join-Path $Root ".build-venv"
 $Py = Join-Path $BuildVenv "Scripts\python.exe"
 $Dist = Join-Path $Root "dist"
-$App = Join-Path $Dist "chatmerge"
+$App = Join-Path $Dist "chatweave"
 
 function Invoke-Checked([string]$What, [scriptblock]$Command) {
     & $Command
@@ -52,8 +52,8 @@ try {
     $version = (& "$Py" -c "import chatmerge; print(chatmerge.__version__)").Trim()
     if ($LASTEXITCODE -ne 0 -or -not $version) { throw "Could not read the app version" }
 
-    Write-Host "Building chatmerge $version ..."
-    Invoke-Checked "PyInstaller" { & "$Py" -m PyInstaller --noconfirm --clean --log-level WARN --distpath "$Dist" --workpath (Join-Path $Root "build") "packaging\chatmerge.spec" }
+    Write-Host "Building Chatweave $version ..."
+    Invoke-Checked "PyInstaller" { & "$Py" -m PyInstaller --noconfirm --clean --log-level WARN --distpath "$Dist" --workpath (Join-Path $Root "build") "packaging\chatweave.spec" }
 
     Copy-Item -LiteralPath (Join-Path $Root "config.toml") -Destination $App -Force
     Copy-Item -LiteralPath (Join-Path $Root "heist.toml") -Destination $App -Force
@@ -65,14 +65,14 @@ try {
 
     if (-not (Test-Path -LiteralPath (Join-Path $App "heist.toml"))) { throw "heist.toml is missing from `"$App`"" }
     if (Test-Path -LiteralPath (Join-Path $App "secrets")) { throw "A secrets folder ended up in `"$App`". Not zipping." }
-    $reported = (& (Join-Path $App "chatmerge.exe") --version).Trim()
-    if ($LASTEXITCODE -ne 0 -or $reported -ne "chatmerge $version") { throw "Built app reports '$reported', expected 'chatmerge $version'" }
+    $reported = (& (Join-Path $App "chatweave.exe") --version).Trim()
+    if ($LASTEXITCODE -ne 0 -or $reported -ne "Chatweave $version") { throw "Built app reports '$reported', expected 'Chatweave $version'" }
 
-    $zip = Join-Path $Dist "chatmerge_app_v$version.zip"
+    $zip = Join-Path $Dist "chatweave_app_v$version.zip"
     Compress-Archive -Path $App -DestinationPath $zip -Force
     if (-not (Test-Path -LiteralPath $zip)) { throw "Zip was not created: `"$zip`"" }
     Write-Host ""
-    Write-Host "Built: `"$App\chatmerge.exe`" ($reported)"
+    Write-Host "Built: `"$App\chatweave.exe`" ($reported)"
     Write-Host "Zip:   `"$zip`""
 } finally {
     Pop-Location

@@ -22,7 +22,7 @@ import aiohttp
 from aiohttp import web
 
 from . import config as config_mod
-from . import __version__, mentions, protogen
+from . import APP_NAME, __version__, mentions, protogen
 from .custom_emotes import CustomEmotes
 from .demo import run_demo
 from .hub import Hub
@@ -32,6 +32,7 @@ from .server import build_app
 from .settings import SettingsError, SettingsStore
 
 log = logging.getLogger("chatmerge")
+LOG_NAME = "chatweave.log"
 
 
 async def _supervise(name: str, hub: Hub, factory: Callable[[], Awaitable[None]]) -> None:
@@ -85,13 +86,13 @@ async def _serve(
     site = web.TCPSite(runner, cfg.host, cfg.port)
     await site.start()
     base = f"http://{cfg.host}:{cfg.port}/"
-    print(f"chatmerge {__version__}")
+    print(f"{APP_NAME} {__version__}")
     print(f"Overlay (OBS browser source): {base}")
     print(f"Events window (OBS browser source): {base}events")
     print(f"Dock (OBS custom browser dock): {base}?dock=1")
     if cfg.game.enabled:
         print(f"Gliese Heist game (OBS browser source): {base}game")
-    print(f'Log file: "{cfg.logs_dir / "chatmerge.log"}"')
+    print(f'Log file: "{cfg.logs_dir / LOG_NAME}"')
 
     recorder: Recorder | None = None
     if record:
@@ -198,10 +199,10 @@ def _setup_logging(verbose: bool) -> None:
 
 
 def _add_log_file(logs_dir: Path) -> None:
-    """logs/chatmerge.log, kept to about 6 MB (3 files). Send it along when reporting a problem."""
+    """logs/chatweave.log, kept to about 6 MB (3 files). Send it along when reporting a problem."""
     logs_dir.mkdir(parents=True, exist_ok=True)
     handler = logging.handlers.RotatingFileHandler(
-        logs_dir / "chatmerge.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8"
+        logs_dir / LOG_NAME, maxBytes=2_000_000, backupCount=3, encoding="utf-8"
     )
     handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
     logging.getLogger().addHandler(handler)
@@ -228,12 +229,12 @@ def _check(cfg: config_mod.Config) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="chatmerge")
+    parser = argparse.ArgumentParser(prog="chatweave" if getattr(sys, "frozen", False) else "python -m chatmerge")
     parser.add_argument("command", nargs="?", default="run", choices=["run", "demo", "auth-youtube", "check", "replay"])
     parser.add_argument("file", nargs="?", default="", help="replay: the recording to play")
     parser.add_argument("--config", default=str(config_mod.DEFAULT_CONFIG))
     parser.add_argument("-v", "--verbose", action="store_true")
-    parser.add_argument("--version", action="version", version=f"chatmerge {__version__}")
+    parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
     parser.add_argument("--youtube-url", default="",
                         help='TEST MODE: read this public live stream\'s chat instead of your own ("ask" = prompt for it)')
     parser.add_argument("--record", action="store_true", help="run: also save raw chat to the recordings folder")
@@ -249,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         cfg = config_mod.load(config_mod.Path(args.config), demo=args.command in ("demo", "replay"))
         _add_log_file(cfg.logs_dir)
-        log.info("chatmerge %s starting: %s", __version__, args.command)
+        log.info("%s %s starting: %s", APP_NAME, __version__, args.command)
         if args.command == "check":
             return _check(cfg)
         if args.command == "auth-youtube":

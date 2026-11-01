@@ -1,4 +1,4 @@
-# chatmerge settings. Edit, save, then restart "Start Chat.bat".
+# Chatweave settings. Edit, save, then restart "Start Chat.bat".
 # The [display] hide_users, [moderation] and [filters] values can also be changed live from
 # the dock's Settings button. Those changes are saved in settings.json and win over this file.
 

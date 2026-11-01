@@ -1,5 +1,5 @@
 # PyInstaller spec for the Windows app folder (onedir). Built by build_exe.ps1.
-# Run from the repo root:  pyinstaller --noconfirm --clean packaging\chatmerge.spec
+# Run from the repo root:  pyinstaller --noconfirm --clean packaging\chatweave.spec
 # The generated YouTube code (chatmerge/_gen) must exist first: build_exe.ps1 makes it.
 from pathlib import Path
 
@@ -33,8 +33,8 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="chatmerge",
+    name="chatweave",
     console=True,  # the black window is the "it's running" signal and shows errors
     upx=False,
 )
-coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="chatmerge")
+coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="chatweave")

@@ -593,7 +593,7 @@
       }
     });
     ws.addEventListener("close", () => {
-      showStatus({ overlay: "lost connection to chatmerge, retrying" });
+      showStatus({ overlay: "lost connection to Chatweave, retrying" });
       setTimeout(connect, 2000);
     });
   }

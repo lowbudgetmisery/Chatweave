@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.11.0
+
+- Renamed to **Chatweave** everywhere you see it: the app is now `chatweave.exe`, the download is `chatweave_app_v....zip`, releases are titled Chatweave, and the log file is `logs\chatweave.log`. Your `config.toml`, YouTube login, `settings.json`, recordings and heist stashes carry over unchanged. (The code's internal name is still `chatmerge`, so `python -m chatmerge` and old recordings keep working.)
+- Added: a demo GIF at the top of the README.
+- Fixed: the heist card said "1 Gumis"; it now says "1 Gumi".
+
 ## 1.10.0
 
 - Added: **BetterTTV and FrankerFaceZ emotes** (global and the channel's own, including BTTV shared emotes), alongside Twitch and 7TV. On a name clash, channel emotes win over global ones, then 7TV, BTTV, FFZ.

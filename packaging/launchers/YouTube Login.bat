@@ -1,5 +1,5 @@
 @echo off
 cd /d "%~dp0"
-"%~dp0chatmerge.exe" auth-youtube
+"%~dp0chatweave.exe" auth-youtube
 echo.
 pause

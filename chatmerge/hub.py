@@ -298,7 +298,7 @@ class Hub:
             self._clients.clear()
         for ws in clients:
             try:
-                await ws.close(code=1001, message=b"chatmerge stopping")
+                await ws.close(code=1001, message=b"Chatweave stopping")
             except (ConnectionResetError, RuntimeError) as exc:
                 log.debug("page connection already gone: %s", exc)
 

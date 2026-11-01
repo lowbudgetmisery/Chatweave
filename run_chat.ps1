@@ -39,4 +39,4 @@ try {
 } finally {
     Pop-Location
 }
-if ($code -ne 0) { throw "chatmerge $cmd stopped with code $code (see the message above)." }
+if ($code -ne 0) { throw "Chatweave $cmd stopped with code $code (see the message above)." }

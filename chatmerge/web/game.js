@@ -56,6 +56,9 @@
 
   function cmdChip(text) { return el("span", "cmd", text); }
 
+  // "1 Gumi", "2 Gumis"
+  function crewWord(game, n) { return n === 1 ? game.crew.one : game.crew.name; }
+
   function names(box, list, total, label) {
     box.replaceChildren();
     if (!total) return;
@@ -136,7 +139,7 @@
 
   function updateJoin(c, ev, game) {
     if (ev.kind !== "heist") return;
-    names(c.crewRow, ev.crew_recent, ev.crew_count, game.crew.name);
+    names(c.crewRow, ev.crew_recent, ev.crew_count, crewWord(game, ev.crew_count));
     c.odds.replaceChildren();
     if (ev.crew_count) {
       c.odds.append(el("span", "dim", "Odds "), el("b", "", `${Math.round(ev.chance * 100)}%`),
@@ -159,7 +162,7 @@
     const sneak = el("div", "sneak");
     for (let i = 0; i < 3; i++) sneak.append(el("i"));
     const crewRow = el("div", "crew");
-    names(crewRow, ev.crew_recent, ev.crew_count, game.crew.name);
+    names(crewRow, ev.crew_recent, ev.crew_count, crewWord(game, ev.crew_count));
     b.append(list, sneak, crewRow);
   }
 
@@ -172,7 +175,7 @@
     b.append(stamp, el("h1", "name small", title), el("p", "result", ev.result));
     if (ev.outcome === "fail") {
       const crewRow = el("div", "crew");
-      names(crewRow, ev.crew_recent, ev.crew_count, `${game.crew.name} caught`);
+      names(crewRow, ev.crew_recent, ev.crew_count, `${crewWord(game, ev.crew_count)} caught`);
       b.append(crewRow);
     }
     if (ev.payouts.length) {

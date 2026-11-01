@@ -34,7 +34,7 @@ def _local_only(port: int):  # type: ignore[no-untyped-def]
     async def middleware(request: web.Request, handler):  # type: ignore[no-untyped-def]
         if request.host.lower() not in allowed:
             log.warning("refused a request for host %r", request.host)
-            raise web.HTTPForbidden(text="chatmerge only answers on 127.0.0.1")
+            raise web.HTTPForbidden(text="Chatweave only answers on 127.0.0.1")
         return await handler(request)
 
     return middleware
@@ -56,7 +56,7 @@ def build_app(hub: Hub, emotes_dir: Path | None = None, port: int = 8787) -> web
         origin = request.headers.get("Origin")
         if origin is not None and origin.lower() not in allowed_origins:
             log.warning("refused a websocket from origin %r", origin)
-            raise web.HTTPForbidden(text="chatmerge only accepts its own pages")
+            raise web.HTTPForbidden(text="Chatweave only accepts its own pages")
         ws = web.WebSocketResponse(heartbeat=20)
         await ws.prepare(request)
 

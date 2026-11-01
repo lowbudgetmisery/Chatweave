@@ -1,14 +1,16 @@
-# Merged Chat for OBS (Twitch + YouTube)
+# Chatweave
 
-*Version 1.10.0. The black window from `Start Chat.bat` prints the version on its first line.*
+**Twitch and YouTube chat woven into one overlay for OBS**, with 7TV, BTTV and FFZ emotes, a cleanup dock, and an optional chat game.
+
+*Version 1.11.0. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
 Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). **Using it for your own channel:** in `config.toml`, put your Twitch name in `channel`, your names in `mention_names`, and make your own YouTube connection (step 3). Nothing else is tied to one channel.
 
-![Demo of the overlay with sample messages](preview.png)
+![Chatweave demo: Twitch and YouTube chat in one overlay, with a Gliese Heist running on the left](demo.gif)
 
-*(The preview uses made-up demo messages and a stand-in font; in OBS it uses Lexend and Quicksand.)*
+*(Made-up demo messages and names. Left: the optional Gliese Heist game card. Right: the merged chat overlay.)*
 
 ## What it does
 
@@ -36,7 +38,7 @@ Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). *
 
 - Windows 10 or 11
 - OBS Studio
-- **Easiest: the ready-made Windows app**, no Python needed. Download the newest `chatmerge_app_v....zip` from this repo's **Releases** page (right side of the GitHub page), then follow the setup below; skip step 2.
+- **Easiest: the ready-made Windows app**, no Python needed. Download the newest `chatweave_app_v....zip` from this repo's **Releases** page (right side of the GitHub page), then follow the setup below; skip step 2.
 - Or, to run from the source code: **Python 3.12** (3.11 to 3.14 work) from [python.org](https://www.python.org/downloads/windows/). During install, tick **"Add python.exe to PATH"**. Setup picks a supported version even if a newer Python is also installed.
 - A Google account that manages your YouTube channel (only for the YouTube part)
 
@@ -47,11 +49,11 @@ Made for Kaneko Lumi's stream, and free for any streamer to use (MIT license). *
 ### 1. Unzip it
 
 1. Right-click the zip, choose **Properties**, tick **Unblock** at the bottom if you see it, then **OK**. (This stops Windows from blocking the launchers.)
-2. Extract it somewhere permanent, for example your `Documents` folder. You'll get a folder called `chatmerge`; everything below happens inside it.
+2. Extract it somewhere permanent, for example your `Documents` folder. You'll get a folder called `chatweave` (or `Chatweave-main` if you downloaded the source code); everything below happens inside it.
 
 ### 2. Run Setup
 
-> **App version (has `chatmerge.exe`, no `Setup.bat`):** skip this step; nothing to install. The first time you double-click a launcher, Windows may say "Windows protected your PC" because the app isn't signed: click **More info**, then **Run anyway**.
+> **App version (has `chatweave.exe`, no `Setup.bat`):** skip this step; nothing to install. The first time you double-click a launcher, Windows may say "Windows protected your PC" because the app isn't signed: click **More info**, then **Run anyway**.
 
 Double-click **`Setup.bat`**. It makes a private Python environment inside the folder (it doesn't touch anything else on your PC), installs what it needs and runs a quick self-test. It takes a minute or two the first time.
 
@@ -72,7 +74,7 @@ YouTube requires every app that reads live chat to have its own "key". You make 
 6. Go to **Clients** in the left menu, click **Create client**:
    - Application type: **Desktop app**. Name: anything. Click **Create**.
    - Click **Download JSON**.
-7. In the chatmerge folder, make a folder called **`secrets`**. Move the downloaded file into it and rename it to **`client_secret.json`**.
+7. In the Chatweave folder, make a folder called **`secrets`**. Move the downloaded file into it and rename it to **`client_secret.json`**.
 
 ### 4. Log in to YouTube
 
@@ -139,6 +141,18 @@ Tip for the first real stream: keep your old chat source in OBS, just hidden. If
 
 ---
 
+## Updating to a new version
+
+1. Close the black `Start Chat.bat` window.
+2. Download and extract the new version into a **new** folder (don't extract over the old one).
+3. Copy these from your old folder into the new one, if you have them: the **`secrets`** folder (your YouTube login), **`config.toml`**, **`settings.json`** (what you saved in the dock), the **`data`** folder (heist stashes), the **`emotes`** folder (your YouTube member emoji images), and **`heist.toml`** if you edited it.
+4. Source-code version only: run **`Setup.bat`** in the new folder once.
+5. Start it with `Start Chat.bat`. The first line of the black window shows the new version. OBS needs no changes: the address stays `http://127.0.0.1:8787/`.
+
+Coming from a version before 1.11 (named chatmerge)? Same steps; the old folder is called `chatmerge`.
+
+---
+
 ## Customizing
 
 Add these to the end of either OBS URL (combine with `&`):
@@ -151,7 +165,7 @@ Add these to the end of either OBS URL (combine with `&`):
 
 Examples: `http://127.0.0.1:8787/?max=6&scale=1.2` or `http://127.0.0.1:8787/events?hide=60`
 
-**Colors:** open `chatmerge\web\overlay.css` in Notepad. All the colors are at the top in the `:root` section (name ribbons, bubble glass, the gold for events). Change the hex codes, save, then right-click the browser source in OBS and choose **Refresh**.
+**Colors:** open `chatmerge\web\overlay.css` in Notepad (in the app version: `_internal\chatmerge\web\overlay.css`; `chatmerge` is the code's internal name). All the colors are at the top in the `:root` section (name ribbons, bubble glass, the gold for events). Change the hex codes, save, then right-click the browser source in OBS and choose **Refresh**.
 
 **Fonts:** the names use *Lexend* and messages use *Quicksand*, loaded from Google Fonts. You can change them in the same place.
 
@@ -282,7 +296,7 @@ Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits l
 | Overlay is blank in OBS | Make sure `Start Chat.bat` is running, then right-click the browser source and click **Refresh**. |
 | Text in OBS looks tiny or blurry | The source was resized in OBS. Right-click it, **Transform**, **Reset Transform**, and change the size with `?scale=` in the URL instead. |
 | "Address already in use" | Another app is using port 8787. Change `port` in `config.toml` and use the new number in the OBS URLs. |
-| Something odd happened mid-stream | Look in the **`logs`** folder: `chatmerge.log` has what happened, with times. Send it along when asking for help (it contains chat names, so share it privately). |
+| Something odd happened mid-stream | Look in the **`logs`** folder: `chatweave.log` has what happened, with times. Send it along when asking for help (it contains chat names, so share it privately). |
 | "Could not read settings.json" at startup | The dock's saved settings file got damaged. Rename `settings.json` (to keep it) and start again; you'll be back on `config.toml` settings. |
 | 7TV, BTTV or FFZ emotes show as plain words | The lists load on startup and refresh every 15 minutes, so an emote added mid-stream shows up within 15 minutes (or restart `Start Chat.bat`). If one add-on's site is down, the other two keep working; the log file says which one failed. |
 
@@ -296,10 +310,10 @@ Super Chats of about $10 and up get a red rim and glow; raids get it too. Bits l
 .\run_chat.ps1 -Replay "recordings\chat_2026-10-30_20-00-00.jsonl" -Speed 4
 ```
 
-In the app version (with `chatmerge.exe`), from the app folder:
+In the app version (with `chatweave.exe`), from the app folder:
 
 ```
-.\chatmerge.exe replay "recordings\chat_2026-10-30_20-00-00.jsonl" --speed 4
+.\chatweave.exe replay "recordings\chat_2026-10-30_20-00-00.jsonl" --speed 4
 ```
 
 Speed `4` plays four times faster; `0` plays it all at once. Recordings contain real viewers' names and messages: keep them private.

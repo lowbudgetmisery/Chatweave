@@ -53,7 +53,9 @@ exempt_mods = true        # you and your mods are never blocked
 # Gliese Heist: Lumi, the universe's greatest thief, plans heists and her Gumis join the crew.
 # Shows on the "/game" browser source only; nothing is posted to chat. The dock gets
 # "Start heist" and "Quick steal" buttons. Stolen loot is saved in data\heist.db.
-# Every target, loot item and line of text is in heist.toml (edit it, then restart).
+# Every target, loot item, line of text, label, color and the emblem are in the theme file:
+# heist.toml is Lumi's Gliese Heist, game_themes\pirate_raid.toml is a full example of another.
+# Copy one to make your own theme (README: "Using the chat game on your own channel").
 enabled = false
 heist_command = "!heist"      # join the crew while a heist is signing up
 steal_command = "!steal"      # first one to type it wins a quick steal race
@@ -63,7 +65,7 @@ event_max_minutes = 15
 heist_join_seconds = 60
 steal_seconds = 30
 teasing = true                # false = leave out the "Idiots." style fail lines
-content_file = "heist.toml"   # next to this file unless you give a full path
+content_file = "heist.toml"   # the theme file; next to this file unless you give a full path
 
 [youtube]
 enabled = true                              # false = Twitch only, no Google setup needed

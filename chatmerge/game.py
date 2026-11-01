@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 import sqlite3
 import threading
 import time
@@ -44,7 +45,7 @@ SHOWN_NAMES = 8        # names sent to the card (the full crew can be hundreds)
 SHOWN_PAYOUTS = 6
 PUBLISH_EVERY_S = 0.25  # joins in a busy chat are batched into one update
 
-PLACEHOLDERS = ("crew", "one", "count", "target", "item", "name")
+PLACEHOLDERS = ("crew", "one", "streamer", "count", "target", "item", "name")
 REQUIRED_LINES = ("open", "plan", "sneak", "success", "fail", "solo", "steal_open", "steal_won", "steal_nobody")
 OPTIONAL_LINES = ("fail_teasing",)
 
@@ -71,6 +72,115 @@ class Rank:
     name: str
 
 
+HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+EMBLEM_TYPES = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
+                ".webp": "image/webp", ".svg": "image/svg+xml"}
+EMBLEM_MAX_BYTES = 2_000_000
+CARD_PLACEHOLDERS = ("crew", "one", "streamer", "command")
+
+
+@dataclass(frozen=True, slots=True)
+class CardStyle:
+    """Everything on the /game card that isn't a story line: labels, colors, emblem.
+    The defaults are Lumi's Gliese Heist look, so a heist.toml without [card] keeps it."""
+
+    title: str = "Gliese Heist"
+    subtitle: str = "from Gliese 667C"          # may be empty
+    heist_tag: str = "Heist"
+    steal_tag: str = "Quick steal"
+    target_label: str = "Target"
+    prize_label: str = "Unguarded"
+    join_prompt: str = "Type {command} to join the crew"
+    steal_prompt: str = "First to type {command} keeps it"
+    heat: tuple[str, str, str] = ("Easy job", "Risky job", "Impossible job")
+    stamp_success: str = "Got away"
+    stamp_fail: str = "Busted"
+    stamp_solo: str = "Solo job"
+    stamp_won: str = "Swiped"
+    stamp_nobody: str = "Too slow"
+    nobody_yet: str = "No {crew} yet. {streamer} might go alone..."
+    odds_hint: str = "more {crew}, better odds"
+    caught: str = "caught"                      # "2 Gumis caught" under a failed heist
+    got_loot: str = "got loot"                  # "+5 more Gumis got loot"
+    item_one: str = "item"                      # !stash: "14 items stolen"
+    item_many: str = "items"
+    stash_verb: str = "stolen"
+    stash_empty: str = "no loot yet. Type {command} when a heist starts!"
+    dock_heist: str = "Start heist"
+    dock_steal: str = "Quick steal"
+    emblem: str = "dwarf"                       # "dwarf" (Gliese 667C), "none", or an image file
+    accent: str = "#ff7a59"
+    gold: str = "#ffd98a"
+    alarm: str = "#ff4d5e"
+
+
+CARD_TEXT_LIMITS = {"title": 40, "subtitle": 60, "join_prompt": 80, "steal_prompt": 80, "nobody_yet": 100,
+                    "odds_hint": 60, "stash_empty": 100}
+NEEDS_COMMAND = ("join_prompt", "steal_prompt")
+CARD_COLORS = ("accent", "gold", "alarm")
+
+
+def _parse_card(raw: Any, base: Path, problems: list[str]) -> tuple[CardStyle, Path | None]:
+    if raw is None:
+        return CardStyle(), None
+    if not isinstance(raw, dict):
+        problems.append("[card] must be a section")
+        return CardStyle(), None
+    fields = {f: getattr(CardStyle(), f) for f in CardStyle.__slots__}  # type: ignore[attr-defined]
+    unknown = sorted(set(raw) - set(fields))
+    if unknown:
+        problems.append(f"[card] has names the game doesn't use: {', '.join(unknown)} (check the spelling)")
+    values: dict[str, Any] = {}
+    for key, value in raw.items():
+        if key not in fields:
+            continue
+        where = f"[card] {key}"
+        if key == "heat":
+            if not (isinstance(value, list) and len(value) == 3 and all(isinstance(v, str) and v.strip() for v in value)):
+                problems.append(f'{where} must be 3 labels in quotes, easy to hard, like ["Easy job", "Risky job", "Impossible job"]')
+                continue
+            values[key] = tuple(v.strip() for v in value)
+        elif key in CARD_COLORS:
+            if not (isinstance(value, str) and HEX_COLOR.match(value.strip())):
+                problems.append(f'{where} must be a color like "#ff7a59" (got {value!r})')
+                continue
+            values[key] = value.strip()
+        elif key == "subtitle" and value == "":
+            values[key] = ""  # no subtitle
+        else:
+            text = _text(value, where, problems, CARD_TEXT_LIMITS.get(key, 30))
+            if not text:
+                continue
+            try:
+                text.format_map({k: "x" for k in CARD_PLACEHOLDERS})
+            except KeyError as exc:
+                allowed = ", ".join("{" + k + "}" for k in CARD_PLACEHOLDERS)
+                problems.append(f"{where} uses {{{exc.args[0]}}}, which isn't a placeholder (use {allowed})")
+                continue
+            except (ValueError, IndexError, AttributeError) as exc:
+                problems.append(f"{where} has a stray {{ or }} ({exc}); write {{{{ or }}}} for a literal brace")
+                continue
+            if key in NEEDS_COMMAND and text.count("{command}") != 1:
+                problems.append(f"{where} must contain {{command}} once (that's where the command chip goes)")
+                continue
+            values[key] = text
+    card = CardStyle(**values)
+    emblem_path: Path | None = None
+    if card.emblem not in ("dwarf", "none"):
+        emblem_path = (base / card.emblem).resolve()
+        if emblem_path.suffix.lower() not in EMBLEM_TYPES:
+            problems.append(f'[card] emblem must be "dwarf", "none", or a .png, .jpg, .gif, .webp or .svg file '
+                            f"(got {card.emblem!r})")
+            emblem_path = None
+        elif not emblem_path.is_file():
+            problems.append(f'[card] emblem file not found: "{emblem_path}" (put it next to this file)')
+            emblem_path = None
+        elif emblem_path.stat().st_size > EMBLEM_MAX_BYTES:
+            problems.append(f'[card] emblem file is too big ({emblem_path.stat().st_size:,} bytes, at most 2 MB)')
+            emblem_path = None
+    return card, emblem_path
+
+
 @dataclass(frozen=True, slots=True)
 class HeistContent:
     crew: str
@@ -79,6 +189,9 @@ class HeistContent:
     targets: tuple[Target, ...]
     loot: tuple[Loot, ...]
     lines: dict[str, tuple[str, ...]]
+    streamer: str = "Lumi"
+    card: CardStyle = field(default_factory=CardStyle)
+    emblem_path: Path | None = None
 
     def rank_for(self, total: int) -> str:
         name = self.ranks[0].name
@@ -123,16 +236,18 @@ def load_content(path: Path) -> HeistContent:
         raw = tomllib.loads(path.read_bytes().decode("utf-8-sig"))
     except (UnicodeDecodeError, tomllib.TOMLDecodeError) as exc:
         raise ContentError(path, [f"not valid TOML: {exc}"]) from exc
-    sections = [k for k, v in raw.items() if isinstance(v, dict) and k != "lines"]
+    sections = [k for k, v in raw.items() if isinstance(v, dict) and k not in ("lines", "card")]
     if sections:
-        raise ContentError(path, [f"found a [{sections[0]}] header: crew, one, ranks, targets and loot must sit at "
-                                  "the top of the file, above the [lines] header, with no other [section] headers"])
+        raise ContentError(path, [f"found a [{sections[0]}] header: streamer, crew, one, ranks, targets and loot must "
+                                  "sit at the top of the file, above the [card] and [lines] headers"])
     problems: list[str] = []
 
     # crew, one, ranks, targets and loot sit at the top of the file, before [lines]: in TOML
     # anything written under a [section] header belongs to that section.
     crew = _text(raw.get("crew"), "crew", problems, 30)
     one = _text(raw.get("one"), "one", problems, 30)
+    streamer = _text(raw.get("streamer", "Lumi"), "streamer", problems, 30)
+    card, emblem_path = _parse_card(raw.get("card"), path.parent, problems)
 
     ranks: list[Rank] = []
     for i, entry in enumerate(_table_list(raw.get("ranks"), "ranks", problems), 1):
@@ -188,14 +303,15 @@ def load_content(path: Path) -> HeistContent:
     unknown = sorted(set(lines_raw) - set(REQUIRED_LINES + OPTIONAL_LINES))
     if unknown:
         problems.append(f"[lines] has names the game doesn't use: {', '.join(unknown)} (check the spelling)")
-    stray = sorted(set(raw) - {"crew", "one", "ranks", "targets", "loot", "lines"})
+    stray = sorted(set(raw) - {"streamer", "crew", "one", "ranks", "targets", "loot", "card", "lines"})
     if stray:
         problems.append(f"unknown names at the top of the file: {', '.join(stray)} (check the spelling, and keep "
-                        "crew, one, ranks, targets and loot above the [lines] header)")
+                        "streamer, crew, one, ranks, targets and loot above the [card] and [lines] headers)")
 
     if problems:
         raise ContentError(path, problems)
-    return HeistContent(crew, one, tuple(ranks), tuple(targets), tuple(loot), lines)
+    return HeistContent(crew, one, tuple(ranks), tuple(targets), tuple(loot), lines,
+                        streamer=streamer, card=card, emblem_path=emblem_path)
 
 
 def _table_list(value: Any, where: str, problems: list[str]) -> list[dict[str, Any]]:
@@ -346,6 +462,7 @@ class GlieseHeist:
         self._publish_pending = False
         self._stash_last: dict[tuple[str, str], float] = {}
         self._background: set[asyncio.Task[None]] = set()
+        self._card = self.card_json()  # fixed for the session: heist.toml is read once at start
         hub.add_hook(self.on_item)
         hub.add_client_op("game_heist", self._dock_heist)
         hub.add_client_op("game_steal", self._dock_steal)
@@ -383,7 +500,8 @@ class GlieseHeist:
         pool = self.content.lines[key]
         if key == "fail" and self.cfg.teasing:
             pool = pool + self.content.lines["fail_teasing"]
-        filled = {k: "" for k in PLACEHOLDERS} | {"crew": self.content.crew, "one": self.content.one}
+        filled = {k: "" for k in PLACEHOLDERS} | {"crew": self.content.crew, "one": self.content.one,
+                                                  "streamer": self.content.streamer}
         filled.update({k: str(v) for k, v in values.items()})
         if values.get("count") == 1:
             filled["crew"] = self.content.one  # "1 Gumi", not "1 Gumis"
@@ -411,7 +529,7 @@ class GlieseHeist:
         ev = Event(uuid.uuid4().hex[:12], "heist", time.time() + self.cfg.join_s, self.cfg.join_s,
                    self.say("open", target=target.name), target=target)
         self.event = ev
-        log.info("Gliese Heist: heist on %s (difficulty %d)", target.name, target.difficulty)
+        log.info("Chat game: heist on %s (difficulty %d)", target.name, target.difficulty)
         await self._publish()
         self._flow = asyncio.create_task(self._heist_flow(ev))
         return True
@@ -424,7 +542,7 @@ class GlieseHeist:
         ev = Event(uuid.uuid4().hex[:12], "steal", time.time() + self.cfg.steal_s, self.cfg.steal_s,
                    self.say("steal_open", item=prize.name), prize=prize)
         self.event = ev
-        log.info("Gliese Heist: steal race for %s (%s)", prize.name, prize.rarity)
+        log.info("Chat game: steal race for %s (%s)", prize.name, prize.rarity)
         await self._publish()
         self._flow = asyncio.create_task(self._steal_flow(ev))
         return True
@@ -456,7 +574,7 @@ class GlieseHeist:
         else:
             ev.outcome, ev.result = "fail", self.say("fail", **values)
         ev.phase = "done"
-        log.info("Gliese Heist: %s with %d crew", ev.outcome, count)
+        log.info("Chat game: %s with %d crew", ev.outcome, count)
         await self._publish()
 
     async def _steal_flow(self, ev: Event) -> None:
@@ -473,7 +591,7 @@ class GlieseHeist:
             else:
                 ev.outcome, ev.result = "nobody", self.say("steal_nobody", item=ev.prize.name)
             ev.phase = "done"
-            log.info("Gliese Heist: steal race %s", ev.outcome)
+            log.info("Chat game: steal race %s", ev.outcome)
             await self._publish()
             await self._save(ev)
             await asyncio.sleep(RESULT_SHOWN_S)
@@ -487,7 +605,7 @@ class GlieseHeist:
         try:
             await asyncio.to_thread(self.db.record, rows, ev.id)
         except sqlite3.Error as exc:
-            log.error('Gliese Heist: %d stolen items could not be saved to "%s": %s', len(rows), self.db.path, exc)
+            log.error('Chat game: %d stolen items could not be saved to "%s": %s', len(rows), self.db.path, exc)
 
     async def _clear(self, ev: Event) -> None:
         if self.event is ev:
@@ -536,7 +654,7 @@ class GlieseHeist:
     def _task_done(self, task: asyncio.Task[None]) -> None:
         self._background.discard(task)
         if not task.cancelled() and task.exception() is not None:
-            log.error("Gliese Heist task failed: %r", task.exception())
+            log.error("Chat game task failed: %r", task.exception())
 
     async def settle(self) -> None:
         """Wait for queued updates and !stash lookups (tests)."""
@@ -566,15 +684,16 @@ class GlieseHeist:
         try:
             total, rare, legendary = await asyncio.to_thread(self.db.summary, item.platform, item.user_id)
         except sqlite3.Error as exc:
-            log.error('Gliese Heist: could not read "%s" for %s: %s', self.db.path, item.author, exc)
+            log.error('Chat game: could not read "%s" for %s: %s', self.db.path, item.author, exc)
             return
         rank = self.content.rank_for(total)
+        card = self.content.card
         if total:
             extras = [f"{n} {label}" for n, label in ((rare, "rare"), (legendary, "legendary")) if n]
-            text = f"{item.author} ({rank}): {total} {'item' if total == 1 else 'items'} stolen"
+            text = f"{item.author} ({rank}): {total} {card.item_one if total == 1 else card.item_many} {card.stash_verb}"
             text += (", " + ", ".join(extras)) if extras else ""
         else:
-            text = f"{item.author} ({rank}): no loot yet. Type {self.cfg.heist_command} when a heist starts!"
+            text = f"{item.author} ({rank}): {self.card_text(card.stash_empty, command=self.cfg.heist_command)}"
         await self.hub.announce({"op": "game_toast", "text": text, "platform": item.platform})
 
     # ---- dock -------------------------------------------------------------------------
@@ -591,6 +710,23 @@ class GlieseHeist:
         state = self._state()
         await self.hub.set_extra("game", state, broadcast={"op": "game", "game": state})
 
+    def card_text(self, text: str, command: str = "{command}") -> str:
+        """Fill {crew}, {one} and {streamer}; {command} stays for the page to draw as a chip."""
+        c = self.content
+        return text.format_map({"crew": c.crew, "one": c.one, "streamer": c.streamer, "command": command})
+
+    def card_json(self) -> dict[str, Any]:
+        card = self.content.card
+        out: dict[str, Any] = {}
+        for name in CardStyle.__slots__:  # type: ignore[attr-defined]
+            value = getattr(card, name)
+            out[name] = self.card_text(value) if isinstance(value, str) and name not in CARD_COLORS else value
+        out["heat"] = [self.card_text(h) for h in card.heat]
+        if self.content.emblem_path is not None:
+            stamp = int(self.content.emblem_path.stat().st_mtime)
+            out["emblem"], out["emblem_url"] = "image", f"/game/emblem?v={stamp}"
+        return out
+
     def _state(self) -> dict[str, Any]:
         return {
             "enabled": True,
@@ -598,4 +734,5 @@ class GlieseHeist:
             "commands": {"heist": self.cfg.heist_command, "steal": self.cfg.steal_command,
                          "stash": self.cfg.stash_command},
             "crew": {"name": self.content.crew, "one": self.content.one},
+            "card": self._card,
         }

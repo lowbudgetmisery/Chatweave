@@ -40,7 +40,8 @@ def _local_only(port: int):  # type: ignore[no-untyped-def]
     return middleware
 
 
-def build_app(hub: Hub, emotes_dir: Path | None = None, port: int = 8787) -> web.Application:
+def build_app(hub: Hub, emotes_dir: Path | None = None, port: int = 8787,
+              game_emblem: Path | None = None) -> web.Application:
     app = web.Application(middlewares=[_local_only(port), _no_stale_files])
     # Pages served by this app (OBS sources, the dock, a browser preview). Any other website
     # open in a browser is refused, so it can't press the dock's buttons or read chat.
@@ -81,7 +82,18 @@ def build_app(hub: Hub, emotes_dir: Path | None = None, port: int = 8787) -> web
     async def game_page(_: web.Request) -> web.FileResponse:
         return web.FileResponse(WEB_DIR / "game.html", headers={"Cache-Control": "no-store"})
 
-    app.router.add_get("/game", game_page)  # Gliese Heist browser source
+    app.router.add_get("/game", game_page)  # chat game browser source
+
+    if game_emblem is not None:  # a theme's own emblem image ([card] emblem in heist.toml)
+        from .game import EMBLEM_TYPES
+
+        emblem_type = EMBLEM_TYPES[game_emblem.suffix.lower()]
+
+        async def emblem(_: web.Request) -> web.FileResponse:
+            return web.FileResponse(game_emblem, headers={"Content-Type": emblem_type, "Cache-Control": "no-cache",
+                                                       "Content-Security-Policy": "script-src 'none'"})
+
+        app.router.add_get("/game/emblem", emblem)
     app.router.add_get("/health", health)
     app.router.add_get("/ws", ws_handler)
     app.router.add_static("/static/", WEB_DIR, show_index=False)

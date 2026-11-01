@@ -81,7 +81,8 @@ async def _serve(
 ) -> None:
     """mode: run (live chat), demo (fake feed) or replay (a recording)."""
     hub = _make_hub(cfg)
-    runner = web.AppRunner(build_app(hub, emotes_dir=cfg.emotes_dir, port=cfg.port))
+    emblem = cfg.game.content.emblem_path if cfg.game.enabled and cfg.game.content else None
+    runner = web.AppRunner(build_app(hub, emotes_dir=cfg.emotes_dir, port=cfg.port, game_emblem=emblem))
     await runner.setup()
     site = web.TCPSite(runner, cfg.host, cfg.port)
     await site.start()
@@ -91,7 +92,7 @@ async def _serve(
     print(f"Events window (OBS browser source): {base}events")
     print(f"Dock (OBS custom browser dock): {base}?dock=1")
     if cfg.game.enabled:
-        print(f"Gliese Heist game (OBS browser source): {base}game")
+        print(f"Chat game, {cfg.game.content.card.title} (OBS browser source): {base}game")  # type: ignore[union-attr]
     print(f'Log file: "{cfg.logs_dir / LOG_NAME}"')
 
     recorder: Recorder | None = None
@@ -222,9 +223,9 @@ def _check(cfg: config_mod.Config) -> int:
         print("YouTube: disabled")
     content = cfg.game.content
     if content is not None:  # config.load already checked heist.toml line by line
-        print(f"Gliese Heist: on, {len(content.targets)} targets, {len(content.loot)} loot items")
+        print(f"Chat game: on, {content.card.title}, {len(content.targets)} targets, {len(content.loot)} loot items")
     else:
-        print("Gliese Heist: off")
+        print("Chat game: off")
     return 0 if ok else 1
 
 

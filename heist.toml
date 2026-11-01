@@ -1,15 +1,21 @@
-# Gliese Heist: everything the game says and steals. Edit freely, then restart the app.
-# The app checks this file on start and says exactly what's wrong if something is off.
+# Gliese Heist: Kaneko Lumi's theme for the chat game. Everything the game says and shows
+# is in this file. Edit freely, then restart the app. The app checks this file on start and
+# says exactly what's wrong if something is off.
+#
+# Making a theme for another streamer: copy this file (or game_themes\pirate_raid.toml),
+# change the words, and point content_file under [game] in config.toml at your copy.
 #
 # Placeholders you can use in lines:
-#   {crew}    the crew name (Gumis)        {one}     one crew member (Gumi)
-#   {count}   how many joined              {target}  the heist target
-#   {item}    the loot (steal race)        {name}    the winner's name (steal race)
+#   {streamer} the streamer's name          {crew}    the crew name (Gumis)
+#   {one}      one crew member (Gumi)       {count}   how many joined
+#   {target}   the heist target             {item}    the loot (steal race)
+#   {name}     the winner's name (steal race)
 # Use {{ and }} for a literal { or }. When only one joined, {crew} reads as {one}.
 #
-# Keep crew, one, ranks, targets and loot ABOVE the [lines] header: in TOML, anything
-# written under a [section] header belongs to that section.
+# Keep streamer, crew, one, ranks, targets and loot ABOVE the [card] and [lines] headers:
+# in TOML, anything written under a [section] header belongs to that section.
 
+streamer = "Lumi"   # used by {streamer}
 crew = "Gumis"      # what the whole chat is called
 one = "Gumi"        # one of them
 
@@ -74,29 +80,61 @@ loot = [
   { name = "the world's last spare gravity", rarity = "legendary" },
 ]
 
+[card]
+# Everything on the /game card that isn't a story line. Every entry is optional: leave one
+# out and you get the Gliese Heist default. {crew}, {one} and {streamer} work here too.
+title = "Gliese Heist"
+subtitle = "from Gliese 667C"            # "" for none
+heist_tag = "Heist"
+steal_tag = "Quick steal"
+target_label = "Target"
+prize_label = "Unguarded"
+join_prompt = "Type {command} to join the crew"     # {command} becomes the !heist chip
+steal_prompt = "First to type {command} keeps it"   # {command} becomes the !steal chip
+heat = ["Easy job", "Risky job", "Impossible job"]  # difficulty 1, 2, 3
+stamp_success = "Got away"
+stamp_fail = "Busted"
+stamp_solo = "Solo job"
+stamp_won = "Swiped"
+stamp_nobody = "Too slow"
+nobody_yet = "No {crew} yet. {streamer} might go alone..."
+odds_hint = "more {crew}, better odds"
+caught = "caught"                       # "2 Gumis caught" under a busted heist
+got_loot = "got loot"                   # "+5 more Gumis got loot"
+item_one = "item"                       # !stash: "14 items stolen"
+item_many = "items"
+stash_verb = "stolen"
+stash_empty = "no loot yet. Type {command} when a heist starts!"
+dock_heist = "Start heist"              # the buttons in your OBS dock
+dock_steal = "Quick steal"
+emblem = "dwarf"                        # "dwarf" (Gliese 667C), "none", or an image next to this file, like "emblem.png"
+accent = "#ff7a59"                      # tags, timer, story lines
+gold = "#ffd98a"                        # command chip, names, loot
+alarm = "#ff4d5e"                       # busted
+
 [lines]
 # Heist card while chat signs up.
 open = [
-  "Lumi spreads the blueprints across the table. Tonight's target: {target}.",
+  "{streamer} spreads the blueprints across the table. Tonight's target: {target}.",
   "A new job just came in from Gliese 667C. Target: {target}.",
-  "Lumi grins. \"Gumis, we're taking {target}.\"",
+  "{streamer} grins. \"Gumis, we're taking {target}.\"",
 ]
 # Shown one by one while the heist plays out.
 plan = [
-  "Lumi checks the plan. Then checks it again. Then throws it away.",
+  "{streamer} checks the plan. Then checks it again. Then throws it away.",
   "{count} {crew} pull on their very suspicious disguises.",
   "The crew sneaks in through the air vents. Someone is humming.",
 ]
 sneak = [
   "The guards are busy arguing about snacks. Perfect.",
-  "A laser grid! Lumi cartwheels through it. The {crew} crawl.",
+  "A laser grid! {streamer} cartwheels through it. The {crew} crawl.",
   "The vault door is open. It was never locked.",
-  "Lumi cracks the safe by guessing the password: 'password'.",
+  "{streamer} cracks the safe by guessing the password: 'password'.",
 ]
 # Heist succeeded.
 success = [
   "Clean getaway! {count} {crew} escape with {target}.",
-  "Lumi beams it all back to Gliese 667C. Light, mischief, and loot for every {one}.",
+  "{streamer} beams it all back to Gliese 667C. Light, mischief, and loot for every {one}.",
   "Nobody saw a thing. The universe's greatest thief strikes again.",
 ]
 # Heist failed (always available).
@@ -104,24 +142,24 @@ fail = [
   "Someone sneezed. Security has been alerted. Everybody run!",
   "A {one} pressed the big red button. The big red button was the alarm.",
   "The getaway car was a shopping cart. It did not get away.",
-  "Lumi escaped. The {crew} are still stuck in the air vents.",
+  "{streamer} escaped. The {crew} are still stuck in the air vents.",
 ]
 # Extra fail lines in her chat's teasing style. Only used when teasing = true in config.toml.
 fail_teasing = [
   "The {crew} tripped the alarm. Idiots.",
-  "Lumi had a perfect plan. The {crew} had other ideas. Unhinged.",
+  "{streamer} had a perfect plan. The {crew} had other ideas. Unhinged.",
   "{count} {crew}, zero brain cells. Busted.",
   "Somehow the {crew} stole the security guard instead. Stupid.",
 ]
 # Nobody joined the heist.
 solo = [
-  "Nobody showed up, so Lumi did it alone. Who needs {crew} anyway?",
-  "Zero {crew} signed up. Lumi stole {target} by herself and kept all of it.",
+  "Nobody showed up, so {streamer} did it alone. Who needs {crew} anyway?",
+  "Zero {crew} signed up. {streamer} stole {target} by herself and kept all of it.",
 ]
 # Steal race card.
 steal_open = [
   "Unguarded: {item}! First {one} to grab it keeps it.",
-  "Lumi spotted {item} just sitting there. Quick!",
+  "{streamer} spotted {item} just sitting there. Quick!",
 ]
 # Someone won the steal race.
 steal_won = [
@@ -130,6 +168,6 @@ steal_won = [
 ]
 # Nobody typed in time.
 steal_nobody = [
-  "Too slow! Lumi pocketed {item} herself.",
-  "The {crew} blinked. Lumi didn't. Goodbye, {item}.",
+  "Too slow! {streamer} pocketed {item} herself.",
+  "The {crew} blinked. {streamer} didn't. Goodbye, {item}.",
 ]

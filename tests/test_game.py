@@ -224,8 +224,8 @@ class GameTests(unittest.TestCase):
 
         asyncio.run(run())
         toasts = [m["text"] for m in ws.sent if m["op"] == "game_toast"]
-        self.assertEqual(toasts, ["Lumi1 (Cat Burglar): 12 items stolen, 1 rare",
-                                  "Newbie (Gumi Recruit): no loot yet. Type !heist when a heist starts!"])
+        self.assertEqual(sorted(toasts), ["Lumi1 (Cat Burglar): 12 items stolen, 1 rare",  # lookups run in parallel
+                                          "Newbie (Gumi Recruit): no loot yet. Type !heist when a heist starts!"])
 
     def test_busy_chat_is_batched_and_never_held_up(self) -> None:
         import time as _time
@@ -301,7 +301,7 @@ class ContentAndConfigTests(unittest.TestCase):
         good = (ROOT / "heist.toml").read_text(encoding="utf-8")
         cases = {
             "uses {gumis}": good.replace("Clean getaway! {count}", "Clean getaway! {gumis}"),
-            "stray {": good.replace("Too slow! Lumi", "Too slow! { Lumi"),
+            "stray {": good.replace("Too slow! {streamer}", "Too slow! { {streamer}"),
             "rarity must be": good.replace('rarity = "legendary" }', 'rarity = "mythic" }', 1),
             "difficulty must be": good.replace("difficulty = 3 }", "difficulty = 4 }", 1),
             "lowest first": good.replace("{ at = 10,", "{ at = 2,"),
@@ -346,6 +346,85 @@ class ContentAndConfigTests(unittest.TestCase):
                 path.write_text(head + bad_line + "\n", encoding="utf-8")
                 with self.assertRaises(config.ConfigError, msg=bad_line):
                     config.load(path)
+
+
+class ThemeTests(unittest.TestCase):
+    """Any streamer can reskin the game: labels, colors, emblem, streamer name."""
+
+    def test_lumi_theme_is_the_default(self) -> None:
+        self.assertEqual(CONTENT.streamer, "Lumi")
+        self.assertEqual((CONTENT.card.title, CONTENT.card.emblem, CONTENT.card.accent),
+                         ("Gliese Heist", "dwarf", "#ff7a59"))
+        # a file from before themes (no streamer, no [card]) keeps the Gliese Heist look
+        old = (ROOT / "heist.toml").read_text(encoding="utf-8")
+        old = old.replace('streamer = "Lumi"', "")
+        old = old[:old.index("[card]")] + old[old.index("[lines]"):]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "heist.toml"
+            path.write_text(old, encoding="utf-8")
+            content = load_content(path)
+        self.assertEqual((content.streamer, content.card), (CONTENT.streamer, CONTENT.card))
+
+    def test_pirate_example_theme(self) -> None:
+        pirate = load_content(ROOT / "game_themes" / "pirate_raid.toml")
+        self.assertEqual((pirate.crew, pirate.streamer, pirate.card.title), ("Deckhands", "Captain Gremlin", "Pirate Raid"))
+        self.assertEqual(pirate.emblem_path, (ROOT / "game_themes" / "anchor.svg").resolve())
+        with tempfile.TemporaryDirectory() as tmp:
+            db = LootDB(Path(tmp) / "h.db")
+            game = GlieseHeist(Hub(), GameConfig(enabled=True, heist_command="!raid"), db, pirate,
+                               rng=AlwaysRoll(0.1))
+            card = game.card_json()
+            self.assertEqual(card["nobody_yet"], "No Deckhands aboard yet. Captain Gremlin might sail alone...")
+            self.assertEqual(card["join_prompt"], "Type {command} to join the boarding party")  # chip stays for the page
+            self.assertEqual((card["emblem"], card["emblem_url"].split("?")[0]), ("image", "/game/emblem"))
+            self.assertEqual(card["heat"], ["Calm seas", "Choppy waters", "Kraken waters"])
+            self.assertNotIn("Lumi", json.dumps(card) + json.dumps(game._state()))
+            text = game.say("solo", target="x", count=0)
+            self.assertNotIn("{", text)
+            db.close()
+
+    def test_card_problems_are_specific(self) -> None:
+        good = (ROOT / "game_themes" / "pirate_raid.toml").read_text(encoding="utf-8")
+        cases = {
+            'must be a color like "#ff7a59"': good.replace('accent = "#3fc1c9"', 'accent = "teal"'),
+            "must contain {command} once": good.replace("Type {command} to join", "Type to join"),
+            "must be 3 labels": good.replace('heat = ["Calm seas", "Choppy waters", "Kraken waters"]', 'heat = ["Calm"]'),
+            "emblem file not found": good.replace('emblem = "anchor.svg"', 'emblem = "missing.png"'),
+            "emblem must be": good.replace('emblem = "anchor.svg"', 'emblem = "anchor.exe"'),
+            "[card] has names the game doesn't use: titel": good.replace('title = "Pirate Raid"', 'titel = "Pirate Raid"'),
+            "uses {captain}": good.replace("{streamer} might sail", "{captain} might sail"),
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "anchor.svg").write_text("<svg xmlns='http://www.w3.org/2000/svg'/>", encoding="utf-8")
+            for expected, text in cases.items():
+                path = Path(tmp) / "theme.toml"
+                path.write_text(text, encoding="utf-8")
+                with self.assertRaises(ContentError, msg=expected) as ctx:
+                    load_content(path)
+                self.assertIn(expected, str(ctx.exception))
+            path.write_text(good.replace('subtitle = "aboard the Saltwater Gremlin"', 'subtitle = ""'), encoding="utf-8")
+            self.assertEqual(load_content(path).card.subtitle, "")  # empty subtitle is allowed
+
+    def test_emblem_is_served_safely(self) -> None:
+        from aiohttp.test_utils import TestClient, TestServer
+
+        from chatmerge.server import build_app
+
+        emblem = ROOT / "game_themes" / "anchor.svg"
+
+        async def run() -> tuple[int, str, str, int]:
+            app = build_app(Hub(), port=8787, game_emblem=emblem)
+            async with TestClient(TestServer(app, port=8787)) as client:
+                ok = await client.get("/game/emblem", headers={"Host": "127.0.0.1:8787"})
+                body = await ok.text()
+                none = build_app(Hub(), port=8788)
+                async with TestClient(TestServer(none, port=8788)) as other:
+                    missing = await other.get("/game/emblem", headers={"Host": "127.0.0.1:8788"})
+                return ok.status, ok.headers["Content-Type"], ok.headers.get("Content-Security-Policy", ""), missing.status
+
+        status, ctype, csp, missing = asyncio.run(run())
+        self.assertEqual((status, ctype, csp), (200, "image/svg+xml", "script-src 'none'"))
+        self.assertEqual(missing, 404)  # no theme emblem: nothing served
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 
 **Twitch and YouTube chat woven into one overlay for OBS**, with 7TV, BTTV and FFZ emotes, a cleanup dock, and an optional chat game.
 
-*Version 1.11.0. The black window from `Start Chat.bat` prints the version on its first line.*
+*Version 1.12.0. The black window from `Start Chat.bat` prints the version on its first line.*
 
 One chat box for your stream with **Twitch and YouTube together**, styled with a celestial look, and **no moderation buttons or panels** in the way. You keep moderating in the normal Twitch and YouTube windows. When your mods delete a message, time someone out or ban them on Twitch or YouTube, the overlay follows along (you choose how; see **Moderation and cleanup**).
 
@@ -145,7 +145,7 @@ Tip for the first real stream: keep your old chat source in OBS, just hidden. If
 
 1. Close the black `Start Chat.bat` window.
 2. Download and extract the new version into a **new** folder (don't extract over the old one).
-3. Copy these from your old folder into the new one, if you have them: the **`secrets`** folder (your YouTube login), **`config.toml`**, **`settings.json`** (what you saved in the dock), the **`data`** folder (heist stashes), the **`emotes`** folder (your YouTube member emoji images), and **`heist.toml`** if you edited it.
+3. Copy these from your old folder into the new one, if you have them: the **`secrets`** folder (your YouTube login), **`config.toml`**, **`settings.json`** (what you saved in the dock), the **`data`** folder (heist stashes), the **`emotes`** folder (your YouTube member emoji images), and **`heist.toml`** or your own theme file (with its emblem image) if you edited or made one.
 4. Source-code version only: run **`Setup.bat`** in the new folder once.
 5. Start it with `Start Chat.bat`. The first line of the black window shows the new version. OBS needs no changes: the address stays `http://127.0.0.1:8787/`.
 
@@ -256,11 +256,26 @@ Every 7 to 15 minutes (change it under `[game]`) one of two things happens. Lumi
 
 **Make it hers:** every target, loot item, rank and line of text is in **`heist.toml`** next to `config.toml`. Edit it in Notepad and restart. If something's wrong in it, the app says exactly which line. Fail lines in her chat's teasing style ("The Gumis tripped the alarm. Idiots.") can be turned off with `teasing = false` under `[game]`.
 
+### Using the chat game on your own channel (any streamer)
+
+Gliese Heist is Lumi's theme. The game underneath is general (a crew event with odds and loot, a first-to-type race, and a collection with ranks), so you can turn it into anything that fits your channel: a pirate raid, a dungeon run, a fishing trip, a bake-off.
+
+A theme is one text file. It holds:
+- **Your names:** `streamer` (used as `{streamer}` in lines), what your chat is called (`crew`, `one`), and the stash ranks.
+- **What happens:** targets with difficulty, loot with rarity, and every line the game says.
+- **The card (`[card]`):** the title and subtitle, tags, prompts, difficulty labels, result stamps, the `!stash` wording, the dock button names, three colors, and an emblem: `"dwarf"` (Lumi's star), `"none"`, or your own image (.png, .jpg, .gif, .webp or .svg, up to 2 MB) next to the theme file.
+
+To make your own:
+1. Copy `game_themes\pirate_raid.toml` (a complete example: "Pirate Raid", Deckhands, an anchor emblem, teal colors) or `heist.toml`, and rename the copy, for example `game_themes\my_theme.toml`.
+2. Change the words and colors in Notepad. Every `[card]` entry is optional; leave one out and you get the Gliese Heist default.
+3. In `config.toml` under `[game]`, set `content_file = "game_themes/my_theme.toml"`. Change the commands too if you like (`heist_command = "!raid"` and so on).
+4. Restart. The black window names your theme, and `/game` and the dock buttons use it. If anything in the file is off, the app stops with the exact line to fix.
+
 Good to know:
 - It never posts in chat, so there's no bot account to set up and it uses none of the YouTube allowance.
 - `!heist`, `!steal` and `!stash` lines are hidden from the chat overlay (if `hide_commands` is on). The commands can be renamed under `[game]`.
 - Hidden users, bots and Shared Chat partner viewers can't play. When the overlay is set to subs only, so is the game.
-- All the art is drawn by the app (the red dwarf star is Gliese 667C). It never uses Lumi's model or art.
+- All the built-in art is drawn by the app (the red dwarf star is Gliese 667C). It never uses Lumi's model or art.
 
 ---
 

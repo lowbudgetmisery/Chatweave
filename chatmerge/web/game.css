@@ -9,6 +9,8 @@
   --gold: #ffd98a;
   --dwarf: #ff7a59;
   --alarm: #ff4d5e;
+  --glow: rgba(255, 110, 80, 0.20);   /* the accent's light on the card (set from the theme) */
+  --tag-start: #ffd0a0;
   --rim: rgba(150, 175, 255, 0.26);
   --common: #b9c3ea;
   --rare: #ffd98a;
@@ -58,7 +60,7 @@ body.preview #hint.show { display: block; }
     radial-gradient(1.2px 1.2px at 14% 30%, rgba(255, 255, 255, 0.5), transparent 70%),
     radial-gradient(1px 1px at 40% 12%, rgba(255, 255, 255, 0.35), transparent 70%),
     radial-gradient(1px 1px at 62% 84%, rgba(255, 255, 255, 0.3), transparent 70%),
-    radial-gradient(90% 70% at 100% 0%, rgba(255, 110, 80, 0.20), transparent 60%),
+    radial-gradient(90% 70% at 100% 0%, var(--glow), transparent 60%),
     linear-gradient(210deg, rgba(48, 30, 92, 0.95) 0%, rgba(18, 18, 56, 0.95) 55%, rgba(7, 8, 24, 0.96) 100%);
   border: 1px solid var(--rim);
   box-shadow: -3px 5px 0 rgba(2, 3, 14, 0.55), -10px 18px 36px rgba(2, 3, 14, 0.55),
@@ -77,12 +79,13 @@ body.preview #hint.show { display: block; }
   padding: calc(5px * var(--s)) calc(10px * var(--s));
   border-radius: 999px;
   color: #1c0f1a;
-  background: linear-gradient(90deg, #ffd0a0, var(--dwarf));
+  background: linear-gradient(90deg, var(--tag-start), var(--dwarf));
   box-shadow: -1px 2px 0 rgba(2, 3, 14, 0.5);
 }
 .k-steal .tag { background: linear-gradient(90deg, var(--gold), #ffb36b); }
 .from { font: 600 calc(12px * var(--s)) / 1 var(--font-name); color: var(--ink-dim); letter-spacing: 0.04em; }
 .emblem { width: calc(46px * var(--s)); height: calc(46px * var(--s)); flex: none; margin: calc(-6px * var(--s)) calc(-6px * var(--s)) calc(-6px * var(--s)) 0; overflow: visible; }
+.emblem-img { object-fit: contain; }
 .emblem .orbit { fill: none; stroke: rgba(255, 190, 160, 0.35); stroke-width: 1; }
 .emblem .planet { fill: #cfe0ff; }
 .emblem .corona { animation: pulse 4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }

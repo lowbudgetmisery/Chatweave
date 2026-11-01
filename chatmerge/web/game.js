@@ -1,7 +1,8 @@
 "use strict";
-// Gliese Heist browser source (/game). Shows the current heist or steal race: sign-up timer,
+// Chat game browser source (/game). Shows the current heist or steal race: sign-up timer,
 // crew, the heist playing out, the result and the loot. Plus !stash toasts. Everything comes
 // from the app over the same websocket as the chat overlay; nothing here talks to chat.
+// Labels, colors and the emblem come from the theme file ([card] in heist.toml).
 // URL options: ?scale=1.0  ?bg=1 (preview background) / ?bg=0 (transparent)
 (() => {
   const params = new URLSearchParams(location.search);
@@ -15,9 +16,8 @@
   const toasts = document.getElementById("toasts");
   const hint = document.getElementById("hint");
   const SVG_NS = "http://www.w3.org/2000/svg";
-  const HEAT = { 1: "Easy job", 2: "Risky job", 3: "Impossible job" };
-  const STAMP = { success: "Got away", fail: "Busted", solo: "Solo job", won: "Swiped", nobody: "Too slow" };
   let card = null; // { id, phase, root, body, ... }
+  let themed = null; // the theme last applied (colors, page title)
 
   function el(tag, cls, text) {
     const node = document.createElement(tag);
@@ -32,7 +32,15 @@
   }
 
   // Gliese 667C: a red dwarf with a planet on its orbit (Lumi's home star).
-  function emblem() {
+  function emblem(theme) {
+    if (theme.emblem === "none") return null;
+    if (theme.emblem === "image" && typeof theme.emblem_url === "string" && theme.emblem_url.startsWith("/game/emblem")) {
+      const img = el("img", "emblem emblem-img");
+      img.src = theme.emblem_url;
+      img.alt = "";
+      img.addEventListener("error", () => img.remove(), { once: true });
+      return img;
+    }
     const root = svg("svg", { class: "emblem", viewBox: "0 0 64 64", "aria-hidden": "true" });
     const defs = svg("defs", {});
     const grad = svg("radialGradient", { id: "dwarf", cx: "38%", cy: "35%", r: "65%" });
@@ -55,6 +63,42 @@
   }
 
   function cmdChip(text) { return el("span", "cmd", text); }
+
+  // "Type {command} to join the crew" -> text, chip, text
+  function promptLine(template, command) {
+    const box = el("div", "prompt");
+    const [before, after] = template.split("{command}");
+    if (before.trim()) box.append(document.createTextNode(before.trim()));
+    box.append(cmdChip(command));
+    if ((after || "").trim()) box.append(document.createTextNode(after.trim()));
+    return box;
+  }
+
+  function rgba(hex, alpha) {
+    const n = Number.parseInt(hex.slice(1), 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+  }
+
+  // mix toward white (no color-mix(): older OBS browsers don't have it)
+  function lighten(hex, amount) {
+    const n = Number.parseInt(hex.slice(1), 16);
+    const ch = (v) => Math.round(v + (255 - v) * amount);
+    return `rgb(${ch((n >> 16) & 255)}, ${ch((n >> 8) & 255)}, ${ch(n & 255)})`;
+  }
+
+  function applyTheme(theme) {
+    if (themed === theme) return;
+    themed = theme;
+    const root = document.documentElement.style;
+    for (const [name, value] of [["--dwarf", theme.accent], ["--gold", theme.gold], ["--alarm", theme.alarm]]) {
+      if (/^#[0-9a-fA-F]{6}$/.test(value || "")) root.setProperty(name, value);
+    }
+    if (/^#[0-9a-fA-F]{6}$/.test(theme.accent || "")) {
+      root.setProperty("--glow", rgba(theme.accent, 0.2));
+      root.setProperty("--tag-start", lighten(theme.accent, 0.55));
+    }
+    if (theme.title) document.title = theme.title;
+  }
 
   // "1 Gumi", "2 Gumis"
   function crewWord(game, n) { return n === 1 ? game.crew.one : game.crew.name; }
@@ -101,8 +145,12 @@
     const root = el("article", `card k-${ev.kind}`);
     const head = el("header", "head");
     const titles = el("div", "titles");
-    titles.append(el("span", "tag", ev.kind === "heist" ? "Heist" : "Quick steal"), el("span", "from", "from Gliese 667C"));
-    head.append(titles, emblem());
+    const theme = game.card;
+    titles.append(el("span", "tag", ev.kind === "heist" ? theme.heist_tag : theme.steal_tag));
+    if (theme.subtitle) titles.append(el("span", "from", theme.subtitle));
+    head.append(titles);
+    const mark = emblem(theme);
+    if (mark) head.append(mark);
     const body = el("div", "body");
     root.append(head, body);
     stage.replaceChildren(root);
@@ -114,10 +162,10 @@
     b.replaceChildren();
     if (ev.kind === "heist") {
       const label = el("div", "label");
-      label.append(el("span", "", "Target"), el("span", `heat h${ev.target.difficulty}`, HEAT[ev.target.difficulty] || ""));
+      label.append(el("span", "", game.card.target_label),
+        el("span", `heat h${ev.target.difficulty}`, game.card.heat[ev.target.difficulty - 1] || ""));
       b.append(label, el("h1", "name", ev.target.name), el("p", "line", ev.text));
-      const prompt = el("div", "prompt");
-      prompt.append(document.createTextNode("Type"), cmdChip(game.commands.heist), document.createTextNode("to join the crew"));
+      const prompt = promptLine(game.card.join_prompt, game.commands.heist);
       const t = timerBar(ev);
       const crewRow = el("div", "crew");
       const odds = el("div", "odds");
@@ -127,10 +175,9 @@
       requestAnimationFrame(t.start);
     } else {
       const label = el("div", "label");
-      label.append(el("span", "", "Unguarded"), el("span", `rarity-tag r-${ev.prize.rarity}`, ev.prize.rarity));
+      label.append(el("span", "", game.card.prize_label), el("span", `rarity-tag r-${ev.prize.rarity}`, ev.prize.rarity));
       b.append(label, el("h1", "name", ev.prize.name), el("p", "line", ev.text));
-      const prompt = el("div", "prompt");
-      prompt.append(document.createTextNode("First to type"), cmdChip(game.commands.steal), document.createTextNode("keeps it"));
+      const prompt = promptLine(game.card.steal_prompt, game.commands.steal);
       const t = timerBar(ev);
       b.append(prompt, t.timer);
       requestAnimationFrame(t.start);
@@ -143,9 +190,9 @@
     c.odds.replaceChildren();
     if (ev.crew_count) {
       c.odds.append(el("span", "dim", "Odds "), el("b", "", `${Math.round(ev.chance * 100)}%`),
-        el("span", "dim", ` · more ${game.crew.name}, better odds`));
+        el("span", "dim", ` · ${game.card.odds_hint}`));
     } else {
-      c.odds.append(el("span", "dim", `No ${game.crew.name} yet. Lumi might go alone...`));
+      c.odds.append(el("span", "dim", game.card.nobody_yet));
     }
   }
 
@@ -170,12 +217,12 @@
     const b = c.body;
     b.replaceChildren();
     c.root.classList.add(`o-${ev.outcome}`);
-    const stamp = el("div", "stamp", STAMP[ev.outcome] || ev.outcome);
+    const stamp = el("div", "stamp", game.card[`stamp_${ev.outcome}`] || ev.outcome);
     const title = ev.kind === "heist" ? ev.target.name : ev.prize.name;
     b.append(stamp, el("h1", "name small", title), el("p", "result", ev.result));
     if (ev.outcome === "fail") {
       const crewRow = el("div", "crew");
-      names(crewRow, ev.crew_recent, ev.crew_count, `${crewWord(game, ev.crew_count)} caught`);
+      names(crewRow, ev.crew_recent, ev.crew_count, `${crewWord(game, ev.crew_count)} ${game.card.caught}`);
       b.append(crewRow);
     }
     if (ev.payouts.length) {
@@ -183,7 +230,7 @@
       ev.payouts.forEach((p) => list.append(lootLine(p)));
       b.append(list);
       const more = ev.payout_count - ev.payouts.length;
-      if (more > 0) b.append(el("div", "more", `+${more} more ${more === 1 ? game.crew.one : game.crew.name} got loot`));
+      if (more > 0) b.append(el("div", "more", `+${more} more ${crewWord(game, more)} ${game.card.got_loot}`));
     }
   }
 
@@ -200,14 +247,15 @@
     if (!game || !game.enabled) {
       leave();
       hint.classList.add("show");
-      hint.textContent = "Gliese Heist is off. Turn it on in config.toml under [game], then restart.";
+      hint.textContent = "The chat game is off. Turn it on in config.toml under [game], then restart.";
       return;
     }
+    applyTheme(game.card);
     const ev = game.event;
     if (!ev) {
       leave();
       hint.classList.add("show");
-      hint.textContent = "Waiting for the next job (or use Start heist / Quick steal in the dock)";
+      hint.textContent = `${game.card.title}: waiting for the next one (or use ${game.card.dock_heist} / ${game.card.dock_steal} in the dock)`;
       return;
     }
     hint.classList.remove("show");

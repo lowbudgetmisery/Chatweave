@@ -348,7 +348,11 @@
       case "resync": // settings changed: redraw from the app's backlog with the new rules
         if (msg.settings) settings = { ...settings, ...msg.settings };
         if (msg.bot_names) botNames = msg.bot_names;
-        for (const btn of gameBtns) btn.hidden = !(msg.game && msg.game.enabled);
+        for (const btn of gameBtns) {
+          btn.hidden = !(msg.game && msg.game.enabled);
+          const label = msg.game && msg.game.card && msg.game.card[`dock_${btn.dataset.which}`];
+          if (typeof label === "string" && label) { btn.dataset.label = label; btn.textContent = label; }
+        }
         feed.replaceChildren();
         for (const item of ((eventsMode ? msg.recent_events : msg.recent) || []).filter((i) => dock || shownOnStream(i)).slice(-max)) add(item, true);
         showStatus(msg.status);

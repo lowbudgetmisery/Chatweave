@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.12.0
+
+- The chat game can now be themed for **any streamer**. A theme file holds the streamer's name (`{streamer}` in lines), the crew name, ranks, targets, loot and lines as before, plus a new `[card]` section: title, subtitle, tags, prompts, difficulty labels, result stamps, `!stash` wording, dock button names, three colors, and an emblem (`"dwarf"`, `"none"`, or your own image).
+- Added: `game_themes\pirate_raid.toml`, a complete second theme ("Pirate Raid", Deckhands, anchor emblem, teal colors), to copy from.
+- `heist.toml` (Lumi's Gliese Heist) now uses `{streamer}` and lists every `[card]` setting. An older `heist.toml` without them keeps the same look.
+- Theme mistakes are caught on start with the exact line (bad color, missing `{command}` in a prompt, unknown placeholder, missing emblem file...).
+
 ## 1.11.0
 
 - Renamed to **Chatweave** everywhere you see it: the app is now `chatweave.exe`, the download is `chatweave_app_v....zip`, releases are titled Chatweave, and the log file is `logs\chatweave.log`. Your `config.toml`, YouTube login, `settings.json`, recordings and heist stashes carry over unchanged. (The code's internal name is still `chatmerge`, so `python -m chatmerge` and old recordings keep working.)

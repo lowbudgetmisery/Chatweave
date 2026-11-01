@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Pirate Raid emblem: a simple anchor. Original art, free to reuse with this app. -->
+  <defs>
+    <linearGradient id="a" gradientUnits="userSpaceOnUse" x1="0" y1="4" x2="0" y2="60">
+      <stop offset="0" stop-color="#bff3f6"/>
+      <stop offset="1" stop-color="#3fc1c9"/>
+    </linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#a)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="32" cy="11" r="5.5"/>
+    <path d="M32 17 V56"/>
+    <path d="M20 26 H44"/>
+    <path d="M10 38 Q12 54 32 56 Q52 54 54 38"/>
+    <path d="M10 38 l-4 5 M10 38 l6 2 M54 38 l4 5 M54 38 l-6 2"/>
+  </g>
+</svg>

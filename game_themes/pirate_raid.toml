@@ -1,0 +1,117 @@
+# Pirate Raid: an example theme showing the chat game can be anything, not just a heist.
+# To use it, set this under [game] in config.toml, then restart:
+#   content_file = "game_themes/pirate_raid.toml"
+#   heist_command = "!raid"      (optional: the commands live in config.toml)
+#   steal_command = "!grab"
+#   stash_command = "!treasure"
+# Copy this file to make your own theme. Same rules and placeholders as heist.toml.
+
+streamer = "Captain Gremlin"
+crew = "Deckhands"
+one = "Deckhand"
+
+ranks = [
+  { at = 0, name = "Swabbie" },
+  { at = 3, name = "Powder Monkey" },
+  { at = 10, name = "Bosun" },
+  { at = 25, name = "First Mate" },
+  { at = 50, name = "Captain's Favorite" },
+]
+
+targets = [
+  { name = "a merchant ship full of rubber ducks", difficulty = 1 },
+  { name = "the harbor's snack stand", difficulty = 1 },
+  { name = "a lighthouse keeper's cookie jar", difficulty = 1 },
+  { name = "a fishing boat's secret bait recipe", difficulty = 1 },
+  { name = "the royal navy's laundry day", difficulty = 2 },
+  { name = "a ghost ship's lost compass", difficulty = 2 },
+  { name = "a mermaid's record collection", difficulty = 2 },
+  { name = "the governor's fancy hat", difficulty = 2 },
+  { name = "a sea serpent's birthday cake", difficulty = 3 },
+  { name = "the kraken's prized seashell", difficulty = 3 },
+  { name = "the treasure on Skull Island (the skull is a rock)", difficulty = 3 },
+]
+
+loot = [
+  { name = "a soggy map", rarity = "common" },
+  { name = "one gold coin (chocolate)", rarity = "common" },
+  { name = "a parrot that only says 'no'", rarity = "common" },
+  { name = "a slightly bent spyglass", rarity = "common" },
+  { name = "a barrel of mostly water", rarity = "common" },
+  { name = "a lucky sock", rarity = "common" },
+  { name = "a bottle with a message (it's a grocery list)", rarity = "common" },
+  { name = "a jeweled eyepatch", rarity = "rare" },
+  { name = "a ship in a bottle, with a tiny crew", rarity = "rare" },
+  { name = "a chest of real doubloons", rarity = "rare" },
+  { name = "the kraken's spare tentacle", rarity = "legendary" },
+  { name = "a compass that points to snacks", rarity = "legendary" },
+]
+
+[card]
+title = "Pirate Raid"
+subtitle = "aboard the Saltwater Gremlin"
+heist_tag = "Raid"
+steal_tag = "Loose loot"
+target_label = "Target"
+prize_label = "Floating by"
+join_prompt = "Type {command} to join the boarding party"
+steal_prompt = "First to type {command} fishes it out"
+heat = ["Calm seas", "Choppy waters", "Kraken waters"]
+stamp_success = "Plundered"
+stamp_fail = "Sunk"
+stamp_solo = "Solo raid"
+stamp_won = "Snagged"
+stamp_nobody = "Overboard"
+nobody_yet = "No {crew} aboard yet. {streamer} might sail alone..."
+odds_hint = "more {crew}, better odds"
+caught = "thrown in the brig"
+got_loot = "got treasure"
+item_one = "treasure"
+item_many = "treasures"
+stash_verb = "plundered"
+stash_empty = "no treasure yet. Type {command} when a raid sets sail!"
+dock_heist = "Start raid"
+dock_steal = "Loose loot"
+emblem = "anchor.svg"
+accent = "#3fc1c9"
+gold = "#ffd166"
+alarm = "#ef476f"
+
+[lines]
+open = [
+  "{streamer} unrolls the map. Tonight we raid {target}!",
+  "A spyglass sighting: {target}, unguarded. All hands on deck!",
+]
+plan = [
+  "{count} {crew} sharpen their very dull swords.",
+  "{streamer} gives a speech. Nobody hears it over the waves.",
+]
+sneak = [
+  "The ship sneaks in under cover of fog. Someone rings the bell by accident.",
+  "The {crew} swing across on ropes. Most of them make it.",
+  "The guards are asleep. The parrot is not.",
+]
+success = [
+  "Plundered! {count} {crew} sail off with {target}.",
+  "Yo ho! {streamer} and the {crew} got away clean.",
+]
+fail = [
+  "The ship sprang a leak. Everyone is bailing water instead.",
+  "The {crew} raided the wrong ship. It was their own.",
+  "A seagull stole the map. Raid cancelled.",
+]
+fail_teasing = [
+  "The {crew} forgot how to swim. Again.",
+]
+solo = [
+  "Nobody came aboard, so {streamer} raided {target} alone.",
+]
+steal_open = [
+  "Floating by: {item}! First {one} to grab it keeps it.",
+]
+steal_won = [
+  "{name} fished out {item}!",
+]
+steal_nobody = [
+  "Too slow! {item} sank to the bottom of the sea.",
+]

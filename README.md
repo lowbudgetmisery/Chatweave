@@ -351,7 +351,7 @@ Speed `4` plays four times faster; `0` plays it all at once. Recordings contain 
 
 ## Support
 
-Chatweave is free to use. Tips are optional on [Ko-fi](https://ko-fi.com/lowbudgetmisery). Starring this repo and sharing it with another streamer also helps.
+Chatweave is free to use. Tips are optional on [Ko-fi](https://ko-fi.com/lowbudgetmisery). More from lowbudgetmisery (VTuber Shorts editing, custom Chatweave themes): [lowbudgetmisery.carrd.co](https://lowbudgetmisery.carrd.co/). Starring this repo and sharing it with another streamer also helps.
 
 ---
 
